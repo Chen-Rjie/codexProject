@@ -1,6 +1,10 @@
 spring:
   main:
     lazy-initialization: true
+  datasource:
+    hikari:
+      connection-timeout: 5000
+      initialization-fail-timeout: 5000
   flyway:
     enabled: false
   jpa:

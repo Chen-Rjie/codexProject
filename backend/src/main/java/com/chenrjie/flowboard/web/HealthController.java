@@ -1,15 +1,26 @@
 package com.chenrjie.flowboard.web;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/health")
 public class HealthController {
+
+    private final DataSource dataSource;
+
+    public HealthController(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @GetMapping
     public Map<String, Object> health() {
@@ -18,6 +29,27 @@ public class HealthController {
                 "service", "flowboard-api",
                 "timestamp", Instant.now()
         );
+    }
+
+    @GetMapping("/database")
+    public ResponseEntity<Map<String, Object>> databaseHealth() {
+        try (Connection connection = dataSource.getConnection()) {
+            boolean valid = connection.isValid(3);
+            Map<String, Object> body = Map.of(
+                    "status", valid ? "UP" : "DOWN",
+                    "component", "mysql",
+                    "timestamp", Instant.now()
+            );
+            return ResponseEntity.status(valid ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(body);
+        } catch (SQLException exception) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of(
+                            "status", "DOWN",
+                            "component", "mysql",
+                            "timestamp", Instant.now()
+                    ));
+        }
     }
 }
 
