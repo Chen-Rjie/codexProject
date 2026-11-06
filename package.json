@@ -11,11 +11,12 @@
     "debug": "concurrently -n api,web -c green,cyan \"npm run debug:api\" \"npm run dev:web\"",
     "debug:api": "node scripts/run-maven.mjs spring-boot:run -Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:5005",
     "services": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-services.ps1",
-    "build": "npm run build:api && npm run build:web",
+    "build": "npm run build:api && npm run build:web && npm run typecheck:miniprogram",
     "build:api": "node scripts/run-maven.mjs clean package",
     "build:web": "npm --prefix frontend run build",
-    "test": "npm run test:api",
-    "test:api": "node scripts/run-maven.mjs test"
+    "test": "npm run test:api && npm run typecheck:miniprogram",
+    "test:api": "node scripts/run-maven.mjs test",
+    "typecheck:miniprogram": "npm --prefix miniprogram run typecheck"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -1,0 +1,166 @@
+.login-page {
+  min-height: 100vh;
+  background: #f3f0e9;
+}
+
+.login-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 520rpx;
+  padding: calc(env(safe-area-inset-top) + 42rpx) 40rpx 70rpx;
+  overflow: hidden;
+  color: white;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(219, 255, 115, 0.2), transparent 330rpx),
+    linear-gradient(155deg, #173129, #0d201a);
+}
+
+.login-hero::after {
+  position: absolute;
+  right: -120rpx;
+  bottom: -220rpx;
+  width: 480rpx;
+  height: 480rpx;
+  content: "";
+  border: 3rpx solid rgba(219, 255, 115, 0.1);
+  border-radius: 50%;
+  box-shadow: 0 0 0 60rpx rgba(219, 255, 115, 0.025);
+}
+
+.login-brand {
+  display: flex;
+  gap: 18rpx;
+  align-items: center;
+  font-size: 36rpx;
+  font-weight: 750;
+  letter-spacing: -2rpx;
+}
+
+.login-mark {
+  display: flex;
+  gap: 4rpx;
+  align-items: flex-end;
+  width: 46rpx;
+  height: 46rpx;
+  padding: 9rpx;
+  background: #dbff73;
+  border-radius: 14rpx;
+}
+
+.login-mark view {
+  display: block;
+  width: 5rpx;
+  background: #10231e;
+  border-radius: 4rpx;
+}
+
+.login-mark view:nth-child(1) { height: 12rpx; }
+.login-mark view:nth-child(2) { height: 27rpx; }
+.login-mark view:nth-child(3) { height: 20rpx; }
+
+.login-kicker {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  padding-top: 70rpx;
+  color: #dbff73;
+  font-size: 19rpx;
+  font-weight: 700;
+  letter-spacing: 3rpx;
+}
+
+.login-headline {
+  position: relative;
+  z-index: 1;
+  margin-top: 20rpx;
+  font-size: 64rpx;
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -4rpx;
+  white-space: pre-line;
+}
+
+.login-description {
+  position: relative;
+  z-index: 1;
+  margin-top: 22rpx;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 22rpx;
+  line-height: 1.7;
+}
+
+.login-panel {
+  position: relative;
+  z-index: 2;
+  padding: 38rpx 34rpx calc(50rpx + env(safe-area-inset-bottom));
+  margin: -28rpx 22rpx 30rpx;
+  background: #fffdf8;
+  border-radius: 32rpx;
+  box-shadow: 0 24rpx 60rpx rgba(24, 41, 33, 0.12);
+}
+
+.login-title {
+  display: block;
+  font-size: 38rpx;
+  font-weight: 750;
+  letter-spacing: -2rpx;
+}
+
+.login-hint {
+  display: block;
+  margin: 12rpx 0 28rpx;
+  color: #7d8782;
+  font-size: 20rpx;
+  line-height: 1.65;
+}
+
+.wechat-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 90rpx;
+  color: white;
+  font-size: 26rpx;
+  font-weight: 700;
+  background: #10231e;
+  border-radius: 24rpx;
+}
+
+.login-divider {
+  display: flex;
+  gap: 14rpx;
+  align-items: center;
+  margin: 28rpx 0;
+  color: #a0a7a3;
+  font-size: 18rpx;
+}
+
+.login-divider view {
+  flex: 1;
+  height: 1rpx;
+  background: #e4e0d8;
+}
+
+.login-password {
+  margin-top: 14rpx;
+}
+
+.password-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 84rpx;
+  margin-top: 16rpx;
+  color: #17271f;
+  font-size: 25rpx;
+  font-weight: 700;
+  background: #dbff73;
+  border-radius: 22rpx;
+}
+
+.reset-button {
+  margin: 24rpx auto 0;
+  color: #9aa19d;
+  font-size: 18rpx;
+}

@@ -1,0 +1,165 @@
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+  margin-top: 30rpx;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 170rpx;
+  padding: 24rpx;
+}
+
+.metric-card > text:first-child {
+  color: #87908b;
+  font-size: 18rpx;
+  font-weight: 650;
+}
+
+.metric-value {
+  margin-top: auto;
+  font-size: 44rpx;
+  font-weight: 750;
+  letter-spacing: -2rpx;
+}
+
+.metric-unit {
+  margin-top: 5rpx;
+  color: #969d99;
+  font-size: 16rpx;
+}
+
+.metric-card.dark {
+  color: white;
+  background: #142a22;
+}
+
+.metric-card.dark > text:first-child,
+.metric-card.dark .metric-unit {
+  color: rgba(255, 255, 255, 0.44);
+}
+
+.metric-card.dark .metric-value {
+  color: #dbff73;
+}
+
+.chart-card,
+.balance-card {
+  padding: 26rpx;
+  margin-top: 16rpx;
+}
+
+.card-title {
+  display: block;
+  margin-top: 7rpx;
+  font-size: 31rpx;
+  font-weight: 730;
+  letter-spacing: -1rpx;
+}
+
+.chart {
+  display: flex;
+  gap: 10rpx;
+  align-items: flex-end;
+  height: 310rpx;
+  padding-top: 24rpx;
+}
+
+.bar-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.bar-value {
+  height: 27rpx;
+  color: #7f8984;
+  font-size: 16rpx;
+}
+
+.bar-track {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  width: 32rpx;
+  overflow: hidden;
+  background: #efede6;
+  border-radius: 8rpx 8rpx 4rpx 4rpx;
+}
+
+.bar-track view {
+  width: 100%;
+  min-height: 4rpx;
+  background: linear-gradient(180deg, #dbff73, #a9d638);
+  border-radius: 8rpx 8rpx 4rpx 4rpx;
+}
+
+.bar-label {
+  margin-top: 9rpx;
+  color: #8c9490;
+  font-size: 14rpx;
+}
+
+.balance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+  margin-top: 24rpx;
+}
+
+.balance-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8b938f;
+  font-size: 17rpx;
+}
+
+.balance-name {
+  display: flex;
+  gap: 10rpx;
+  align-items: center;
+  color: #2e4037;
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.balance-line {
+  height: 7rpx;
+  margin-top: 10rpx;
+  overflow: hidden;
+  background: #e9e6de;
+  border-radius: 8rpx;
+}
+
+.balance-line view {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  padding: 24rpx;
+  margin-top: 16rpx;
+  color: #617042;
+  background: #eff3dd;
+  border-radius: 22rpx;
+}
+
+.insight-card > text:first-child {
+  color: #72804c;
+  font-size: 17rpx;
+  font-weight: 750;
+  letter-spacing: 1rpx;
+}
+
+.insight-copy {
+  font-size: 20rpx;
+  line-height: 1.65;
+}

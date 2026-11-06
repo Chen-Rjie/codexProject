@@ -1,0 +1,30 @@
+<view class="login-page">
+  <view class="login-hero">
+    <view class="login-brand">
+      <view class="login-mark"><view></view><view></view><view></view></view>
+      <text>flowboard</text>
+    </view>
+    <text class="login-kicker">多技能 · 轻计划 · 可持续</text>
+    <text class="login-headline">让学习节奏\n融进下班生活。</text>
+    <text class="login-description">不必每天都学很多。按真实可用时间安排多项技能，让一小步也能长期累积。</text>
+  </view>
+
+  <view class="login-panel">
+    <text class="login-title">开始你的学习计划</text>
+    <text class="login-hint">微信登录会在后端安全换取 openid，不会在小程序中保存 AppSecret。</text>
+
+    <button class="wechat-button" loading="{{busy}}" bindtap="wechatLogin">
+      微信一键登录
+    </button>
+
+    <block wx:if="{{enablePasswordLogin}}">
+      <view class="login-divider"><view></view><text>开发联调登录</text><view></view></view>
+      <input class="field-input" placeholder="用户名" value="{{username}}" bindinput="onUsername" />
+      <input class="field-input login-password" password placeholder="密码" value="{{password}}" bindinput="onPassword" />
+      <button class="password-button" loading="{{busy}}" bindtap="passwordLogin">进入学习空间</button>
+    </block>
+
+    <text wx:if="{{error}}" class="error-text">{{error}}</text>
+    <button class="reset-button" bindtap="resetSession">清除本地登录状态</button>
+  </view>
+</view>

@@ -1,0 +1,82 @@
+<view class="page" wx:if="{{!loading}}">
+  <view class="today-heading">
+    <view>
+      <text class="eyebrow">{{dateLabel}}</text>
+      <text class="page-title">{{user.displayName}}，今晚留一点时间给自己。</text>
+      <text class="page-subtitle">完成最重要的一个小节就够了，稳定比冲刺更有价值。</text>
+    </view>
+    <button class="logout-link" bindtap="logout">退出</button>
+  </view>
+
+  <view wx:if="{{skills.length === 0}}" class="empty-state first-run">
+    <view class="empty-mark">01</view>
+    <text class="empty-title">先从一项真正想学的技能开始</text>
+    <text class="empty-copy">设定每周时间预算，系统会拆成可以完成的小步。</text>
+    <button class="primary-button accent-button empty-action" bindtap="goSkills">添加第一项技能</button>
+  </view>
+
+  <block wx:else>
+    <view class="progress-card card">
+      <view class="progress-ring" style="background: conic-gradient(#b9e33e {{progress * 3.6}}deg, #e8e5dc 0);">
+        <view><text>{{progress}}%</text><text class="progress-caption">今日完成</text></view>
+      </view>
+      <view class="progress-copy">
+        <text>今天的学习</text>
+        <text class="progress-title">{{doneCount}} / {{todayItems.length}} 项已完成</text>
+        <text class="progress-detail">计划 {{plannedMinutes}} 分钟 · 已专注 {{doneMinutes}} 分钟</text>
+      </view>
+    </view>
+
+    <view class="streak-card">
+      <text class="streak-value">{{streak}}</text>
+      <view>
+        <text>连续学习天数</text>
+        <text class="streak-title">{{streak > 0 ? '节奏正在形成' : '今天就是新的起点'}}</text>
+        <text class="streak-copy">偶尔中断不会清空总进度。</text>
+      </view>
+    </view>
+
+    <view wx:if="{{timerItem}}" class="timer-card">
+      <view>
+        <text class="timer-kicker">正在专注</text>
+        <text class="timer-title">{{timerItem.title}}</text>
+      </view>
+      <text class="timer-value">{{timerLabel}}</text>
+      <view class="timer-actions">
+        <button class="timer-pause" bindtap="toggleTimer">{{timerRunning ? '暂停' : '继续'}}</button>
+        <button class="timer-finish" bindtap="finishTimer">完成并记录</button>
+      </view>
+    </view>
+
+    <view class="section-head">
+      <view><text class="eyebrow">TODAY</text><text class="section-title">今天学什么</text></view>
+      <text class="section-count">{{todayItems.length}} 项安排</text>
+    </view>
+
+    <view wx:if="{{todayItems.length === 0}}" class="empty-state">
+      <view class="empty-mark">+</view>
+      <text class="empty-title">今天还没有安排</text>
+      <text class="empty-copy">去周计划加入一项 15 分钟的轻量学习。</text>
+      <button class="secondary-button empty-action" bindtap="goPlan">前往计划</button>
+    </view>
+
+    <view wx:else class="agenda">
+      <view wx:for="{{todayItems}}" wx:key="id" class="agenda-item card status-{{item.statusClass}}">
+        <view class="agenda-rail" style="background: {{item.accent}};"></view>
+        <view class="agenda-copy">
+          <text class="agenda-skill">{{item.skillName}} · {{item.plannedMinutes}} 分钟</text>
+          <text class="agenda-title">{{item.title}}</text>
+          <text wx:if="{{item.note}}" class="agenda-note">{{item.note}}</text>
+        </view>
+        <view wx:if="{{item.status === 'PLANNED'}}" class="agenda-actions">
+          <button class="agenda-done" data-id="{{item.id}}" bindtap="startTimer">开始</button>
+          <button class="agenda-quick" data-id="{{item.id}}" bindtap="quickComplete">按计划完成</button>
+          <button class="agenda-skip" data-id="{{item.id}}" bindtap="skip">跳过</button>
+        </view>
+        <text wx:else class="agenda-status">{{item.statusText}}</text>
+      </view>
+    </view>
+  </block>
+</view>
+<view wx:else class="loading">正在整理今天的学习安排…</view>
+

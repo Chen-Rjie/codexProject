@@ -1,0 +1,154 @@
+.add-plan {
+  margin-top: 28rpx;
+}
+
+.week-summary {
+  display: flex;
+  gap: 28rpx;
+  padding: 24rpx 0;
+  color: #7d8782;
+  font-size: 19rpx;
+  border-bottom: 1rpx solid #d8d4ca;
+}
+
+.summary-number {
+  color: #17231f;
+  font-size: 29rpx;
+  font-weight: 750;
+}
+
+.week-scroll {
+  width: 100%;
+  margin-top: 20rpx;
+  white-space: nowrap;
+}
+
+.week-row {
+  display: flex;
+  gap: 12rpx;
+  padding-bottom: 14rpx;
+}
+
+.day-column {
+  display: inline-flex;
+  flex: 0 0 250rpx;
+  flex-direction: column;
+  min-height: 720rpx;
+  padding: 16rpx;
+  white-space: normal;
+  background: rgba(231, 228, 219, 0.58);
+  border: 1rpx solid #d7d3c9;
+  border-radius: 24rpx;
+}
+
+.day-column.is-today {
+  background: rgba(219, 255, 115, 0.16);
+  border-color: #bfd57a;
+}
+
+.day-heading {
+  display: flex;
+  gap: 7rpx;
+  align-items: center;
+  padding: 6rpx 2rpx 15rpx;
+  color: #65716a;
+  font-size: 19rpx;
+  font-weight: 700;
+  border-bottom: 1rpx solid #d7d3c9;
+}
+
+.day-weekday {
+  color: #939a96;
+  font-size: 17rpx;
+}
+
+.day-heading button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38rpx;
+  height: 38rpx;
+  margin-left: auto;
+  color: #748078;
+  border: 1rpx solid #d2cec4;
+  border-radius: 10rpx;
+}
+
+.day-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  padding-top: 13rpx;
+}
+
+.plan-item {
+  padding: 14rpx;
+  background: #fffdf8;
+  border: 1rpx solid #dedad2;
+  border-left: 6rpx solid #dbff73;
+  border-radius: 16rpx;
+}
+
+.plan-skill {
+  display: block;
+  color: #8c9590;
+  font-size: 16rpx;
+  font-weight: 650;
+}
+
+.plan-title {
+  display: block;
+  margin-top: 7rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.plan-time {
+  display: block;
+  margin-top: 7rpx;
+  color: #939a96;
+  font-size: 17rpx;
+}
+
+.plan-actions {
+  display: flex;
+  gap: 8rpx;
+  margin-top: 12rpx;
+}
+
+.plan-actions button {
+  padding: 7rpx 11rpx;
+  color: #526159;
+  font-size: 16rpx;
+  background: #f0ede6;
+  border-radius: 9rpx;
+}
+
+.plan-actions button:first-child {
+  color: #17271f;
+  background: #dbff73;
+}
+
+.plan-status {
+  display: block;
+  margin-top: 11rpx;
+  color: #43805b;
+  font-size: 16rpx;
+  font-weight: 700;
+}
+
+.plan-item.status-DONE {
+  opacity: 0.62;
+}
+
+.blank-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100rpx;
+  color: #a0a6a2;
+  font-size: 17rpx;
+  border: 1rpx dashed #d3cfc4;
+  border-radius: 14rpx;
+}

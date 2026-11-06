@@ -1,0 +1,9 @@
+{
+  "desc": "Flowboard study planning mini program",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

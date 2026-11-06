@@ -1,6 +1,14 @@
 # Flowboard
 
-一个前后端分离的任务管理看板。后端使用 Java + Spring Boot，前端使用 React + TypeScript，业务数据存储在 MySQL，登录会话存储在 Redis。
+面向上班族的多技能学习计划工具。后端使用 Java + Spring Boot，前端使用 React + TypeScript，业务数据存储在 MySQL，登录会话存储在 Redis。
+
+当前 Web 版本包含：
+
+- 今日学习清单与专注计时
+- 多技能每周时间预算
+- 按技能自动生成本周学习安排
+- 学习完成、跳过和真实时长记录
+- 每日投入、计划完成率、连续学习和技能时间分配复盘
 
 ## 技术栈
 
@@ -18,6 +26,7 @@ codexProject/
 │  └─ src/
 ├─ frontend/          React 单页应用
 │  └─ src/
+├─ miniprogram/       原生微信小程序
 ├─ scripts/           本地 Maven 与服务启动脚本
 ├─ package.json       统一开发与构建命令
 ├─ docker-compose.yml MySQL + Redis 容器配置
@@ -107,7 +116,7 @@ npm test
 npm run build
 ```
 
-后端测试覆盖注册、登录、退出、会话、用户数据隔离、任务 CRUD、参数校验和 404 响应；构建命令会同时验证 Java 编译、后端测试以及 TypeScript/Vite 生产构建。
+后端测试覆盖注册、登录、退出、会话、用户数据隔离、学习技能、自动排课、学习记录、旧任务接口、参数校验和 404 响应；构建命令会同时验证 Java 编译、后端测试以及 TypeScript/Vite 生产构建。
 
 ## REST API
 
@@ -118,14 +127,21 @@ npm run build
 | `POST` | `/api/auth/login` | 登录并建立 Redis 会话 |
 | `GET` | `/api/auth/me` | 获取当前登录用户 |
 | `POST` | `/api/auth/logout` | 退出并删除当前会话 |
+| `GET` | `/api/study/skills` | 查询当前用户的技能 |
+| `POST` | `/api/study/skills` | 创建学习技能 |
+| `PUT` | `/api/study/skills/{id}` | 修改学习技能 |
+| `POST` | `/api/study/skills/{id}/generate-plan` | 按每周预算生成计划 |
+| `GET` | `/api/study/items` | 查询日期范围内的学习安排 |
+| `POST` | `/api/study/items` | 创建学习安排 |
+| `POST` | `/api/study/items/{id}/complete` | 完成并记录真实学习时长 |
+| `POST` | `/api/study/items/{id}/skip` | 跳过当前安排 |
+| `GET` | `/api/study/sessions` | 查询学习记录 |
 | `GET` | `/api/tasks` | 查询任务，支持 `search`、`status`、`priority` |
 | `POST` | `/api/tasks` | 创建任务 |
 | `PATCH` | `/api/tasks/{id}` | 修改任务 |
 | `DELETE` | `/api/tasks/{id}` | 删除任务 |
 
-任务状态：`TODO`、`IN_PROGRESS`、`DONE`
-
-任务优先级：`LOW`、`MEDIUM`、`HIGH`
+旧任务接口暂时保留，用于兼容改造前的保险版本；新学习计划使用 `/api/study/**` 接口。
 
 ## 配置
 
@@ -138,6 +154,8 @@ npm run build
 - `CORS_ALLOWED_ORIGINS`：允许的前端来源，逗号分隔
 - `SESSION_COOKIE_SECURE`：HTTPS 部署时设置为 `true`
 - `REGISTRATION_ENABLED`：是否开放注册，默认 `true`
+- `WECHAT_APP_ID`：微信小程序 AppID
+- `WECHAT_APP_SECRET`：微信小程序 AppSecret，只允许配置在后端
 
 完整示例见 [.env.example](.env.example)。生产环境必须修改默认数据库密码，并通过环境变量注入真实凭据。
 
@@ -146,3 +164,38 @@ npm run build
 ```bash
 VITE_API_URL=https://api.example.com/api npm run build:web
 ```
+
+## 微信小程序
+
+小程序目录为 `miniprogram/`，使用原生微信小程序 + TypeScript。当前包含：
+
+- 微信 `wx.login()` 获取 code
+- 后端换取 `openid` 并签发 Access Token / Refresh Token
+- 开发环境账号密码 Token 登录
+- 今日学习、技能、本周计划、学习复盘
+
+首次打开前：
+
+1. 在微信公众平台注册小程序并取得 AppID
+2. 将 AppID 写入 `miniprogram/project.config.json`
+3. 在后端环境变量中配置 `WECHAT_APP_ID`、`WECHAT_APP_SECRET`
+4. 将 [config.ts](miniprogram/config.ts) 的 `API_BASE_URL` 改成已备案的 HTTPS 域名
+5. 在微信公众平台配置 request 合法域名
+6. 使用微信开发者工具导入 `miniprogram/` 目录
+
+本地未安装微信开发者工具时，可以先执行：
+
+```bash
+npm run typecheck:miniprogram
+```
+
+`touristappid` 和 `127.0.0.1` 只用于开发配置。正式提审前必须关闭 `ENABLE_PASSWORD_LOGIN` 并换成正式 AppID、AppSecret 和 HTTPS API 域名。
+
+小程序认证接口：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/auth/wechat/login` | 使用微信 `code` 登录 |
+| `POST` | `/api/auth/token/login` | 开发环境账号密码换取 Token |
+| `POST` | `/api/auth/token/refresh` | 轮换 Access/Refresh Token |
+| `POST` | `/api/auth/token/logout` | 撤销当前 Token |

@@ -1,0 +1,30 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/today/index",
+    "pages/skills/index",
+    "pages/plan/index",
+    "pages/review/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#10231E",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "Flowboard 学习计划",
+    "backgroundColor": "#F3F0E9",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#7D8782",
+    "selectedColor": "#1D2E26",
+    "backgroundColor": "#FFFDF8",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/today/index", "text": "今日" },
+      { "pagePath": "pages/skills/index", "text": "技能" },
+      { "pagePath": "pages/plan/index", "text": "计划" },
+      { "pagePath": "pages/review/index", "text": "复盘" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

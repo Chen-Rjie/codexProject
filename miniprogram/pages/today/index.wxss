@@ -1,0 +1,297 @@
+.today-heading {
+  display: flex;
+  gap: 20rpx;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.today-heading .page-title {
+  max-width: 580rpx;
+  font-size: 56rpx;
+}
+
+.logout-link {
+  flex: 0 0 auto;
+  padding: 8rpx 14rpx;
+  color: #87918c;
+  font-size: 19rpx;
+  border: 1rpx solid #d7d3c9;
+  border-radius: 14rpx;
+}
+
+.first-run {
+  margin-top: 80rpx;
+}
+
+.empty-action {
+  width: 330rpx;
+  margin-top: 28rpx;
+}
+
+.progress-card {
+  display: flex;
+  gap: 26rpx;
+  align-items: center;
+  padding: 28rpx;
+  margin-top: 36rpx;
+}
+
+.progress-ring {
+  display: flex;
+  flex: 0 0 150rpx;
+  align-items: center;
+  justify-content: center;
+  width: 150rpx;
+  height: 150rpx;
+  border-radius: 50%;
+}
+
+.progress-ring > view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 118rpx;
+  height: 118rpx;
+  background: #fffdf8;
+  border-radius: 50%;
+}
+
+.progress-ring text:first-child {
+  font-size: 38rpx;
+  font-weight: 750;
+  letter-spacing: -2rpx;
+}
+
+.progress-caption {
+  margin-top: 3rpx;
+  color: #89928d;
+  font-size: 16rpx;
+}
+
+.progress-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.progress-copy > text:first-child {
+  color: #89928d;
+  font-size: 18rpx;
+  font-weight: 650;
+}
+
+.progress-title {
+  font-size: 31rpx;
+  font-weight: 720;
+  letter-spacing: -1rpx;
+}
+
+.progress-detail {
+  color: #848d88;
+  font-size: 19rpx;
+  line-height: 1.55;
+}
+
+.streak-card {
+  display: flex;
+  gap: 26rpx;
+  align-items: center;
+  padding: 28rpx;
+  margin-top: 18rpx;
+  color: white;
+  background: #142a22;
+  border-radius: 30rpx;
+}
+
+.streak-value {
+  color: #dbff73;
+  font-size: 70rpx;
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: -3rpx;
+}
+
+.streak-card > view {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 17rpx;
+}
+
+.streak-title {
+  color: white;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.streak-copy {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.timer-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20rpx;
+  padding: 26rpx;
+  margin-top: 18rpx;
+  color: white;
+  background: linear-gradient(100deg, #1e3b31, #11271f);
+  border-radius: 28rpx;
+}
+
+.timer-card > view:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.timer-kicker {
+  color: #dbff73;
+  font-size: 17rpx;
+  font-weight: 700;
+}
+
+.timer-title {
+  font-size: 26rpx;
+  font-weight: 650;
+}
+
+.timer-value {
+  font-family: monospace;
+  font-size: 46rpx;
+  font-weight: 700;
+}
+
+.timer-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 14rpx;
+}
+
+.timer-actions button {
+  flex: 1;
+  height: 72rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  border-radius: 18rpx;
+}
+
+.timer-pause {
+  color: white;
+  border: 1rpx solid rgba(255, 255, 255, 0.18);
+}
+
+.timer-finish {
+  color: #14241d;
+  background: #dbff73;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 42rpx 4rpx 18rpx;
+}
+
+.section-title {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 36rpx;
+  font-weight: 750;
+  letter-spacing: -2rpx;
+}
+
+.section-count {
+  color: #8b938f;
+  font-size: 18rpx;
+}
+
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.agenda-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 6rpx 1fr;
+  gap: 22rpx;
+  padding: 24rpx 24rpx 24rpx 0;
+  overflow: hidden;
+}
+
+.agenda-rail {
+  align-self: stretch;
+  width: 6rpx;
+  border-radius: 0 6rpx 6rpx 0;
+}
+
+.agenda-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 7rpx;
+  min-width: 0;
+}
+
+.agenda-skill {
+  color: #8c9590;
+  font-size: 17rpx;
+  font-weight: 650;
+}
+
+.agenda-title {
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.agenda-note {
+  color: #818a86;
+  font-size: 19rpx;
+}
+
+.agenda-actions {
+  display: flex;
+  grid-column: 2;
+  gap: 10rpx;
+  padding-top: 13rpx;
+  border-top: 1rpx dashed #e4e0d7;
+}
+
+.agenda-actions button {
+  padding: 10rpx 14rpx;
+  font-size: 18rpx;
+  border-radius: 12rpx;
+}
+
+.agenda-done {
+  color: #17271f;
+  font-weight: 700;
+  background: #dbff73;
+}
+
+.agenda-quick {
+  color: #66726b;
+  background: #f2efe8;
+}
+
+.agenda-skip {
+  color: #9a9f9c;
+}
+
+.agenda-status {
+  grid-column: 2;
+  color: #42805b;
+  font-size: 18rpx;
+  font-weight: 700;
+}
+
+.status-done {
+  opacity: 0.62;
+}
+
+.status-done .agenda-title {
+  text-decoration: line-through;
+}

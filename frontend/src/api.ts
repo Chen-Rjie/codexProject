@@ -6,6 +6,13 @@ import type {
   TaskPriority,
   TaskStatus,
 } from './types'
+import type {
+  SkillInput,
+  StudyItem,
+  StudyItemInput,
+  StudySession,
+  StudySkill,
+} from './study/studyTypes'
 
 const API_ROOT = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 let pendingCurrentUser: Promise<AuthUser> | null = null
@@ -131,6 +138,76 @@ export function updateTask(id: number, input: TaskInput): Promise<Task> {
 
 export function deleteTask(id: number): Promise<void> {
   return request<void>(`/tasks/${id}`, { method: 'DELETE' })
+}
+
+export function listStudySkills(): Promise<StudySkill[]> {
+  return request<StudySkill[]>('/study/skills')
+}
+
+export function createStudySkill(input: SkillInput): Promise<StudySkill> {
+  return request<StudySkill>('/study/skills', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateStudySkill(id: number, input: SkillInput): Promise<StudySkill> {
+  return request<StudySkill>(`/study/skills/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+export function deleteStudySkill(id: number): Promise<void> {
+  return request<void>(`/study/skills/${id}`, { method: 'DELETE' })
+}
+
+export function generateStudyWeek(skillId: number, weekStart: string): Promise<StudyItem[]> {
+  return request<StudyItem[]>(
+    `/study/skills/${skillId}/generate-plan?weekStart=${encodeURIComponent(weekStart)}`,
+    { method: 'POST' },
+  )
+}
+
+export function listStudyItems(from: string, to: string): Promise<StudyItem[]> {
+  return request<StudyItem[]>(
+    `/study/items?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  )
+}
+
+export function createStudyItem(input: StudyItemInput): Promise<StudyItem> {
+  return request<StudyItem>('/study/items', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function completeStudyItem(
+  id: number,
+  durationMinutes: number,
+  note = '',
+): Promise<StudyItem> {
+  return request<StudyItem>(`/study/items/${id}/complete`, {
+    method: 'POST',
+    body: JSON.stringify({ durationMinutes, note }),
+  })
+}
+
+export function skipStudyItem(id: number, reason = ''): Promise<StudyItem> {
+  return request<StudyItem>(`/study/items/${id}/skip`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export function deleteStudyItem(id: number): Promise<void> {
+  return request<void>(`/study/items/${id}`, { method: 'DELETE' })
+}
+
+export function listStudySessions(from: string, to: string): Promise<StudySession[]> {
+  return request<StudySession[]>(
+    `/study/sessions?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  )
 }
 
 export function checkHealth(): Promise<{ status: string; service: string }> {

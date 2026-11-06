@@ -1,0 +1,63 @@
+<view class="page" wx:if="{{!loading}}">
+  <text class="eyebrow">和自己核对一周</text>
+  <text class="page-title">看见投入，而不只看见结果。</text>
+  <text class="page-subtitle">学习计划不是考核表。复盘真实时间，给下一周一个更合适的节奏。</text>
+
+  <view class="metric-grid">
+    <view class="metric-card card">
+      <text>本周专注</text>
+      <text class="metric-value">{{totalMinutes}}</text>
+      <text class="metric-unit">分钟 / 目标 {{targetMinutes}}</text>
+    </view>
+    <view class="metric-card card">
+      <text>有效学习日</text>
+      <text class="metric-value">{{activeDays}}</text>
+      <text class="metric-unit">天</text>
+    </view>
+    <view class="metric-card card">
+      <text>计划完成率</text>
+      <text class="metric-value">{{completionRate}}%</text>
+      <text class="metric-unit">{{doneCount}} / {{itemCount}} 项</text>
+    </view>
+    <view class="metric-card card dark">
+      <text>连续学习</text>
+      <text class="metric-value">{{streak}}</text>
+      <text class="metric-unit">天 · 中断后仍可继续</text>
+    </view>
+  </view>
+
+  <view class="chart-card card">
+    <view class="card-heading">
+      <view><text class="eyebrow">RHYTHM</text><text class="card-title">每天的投入</text></view>
+    </view>
+    <view class="chart">
+      <view wx:for="{{bars}}" wx:key="label" class="bar-column">
+        <text class="bar-value">{{item.minutes || ''}}</text>
+        <view class="bar-track"><view style="height: {{item.height}}%;"></view></view>
+        <text class="bar-label">{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="balance-card card">
+    <text class="eyebrow">BALANCE</text>
+    <text class="card-title">时间分配</text>
+    <view class="balance-list">
+      <view wx:for="{{skills}}" wx:key="id" class="balance-row">
+        <view class="balance-top">
+          <view class="balance-name"><view class="skill-dot" style="background: {{item.accent}};"></view><text>{{item.name}}</text></view>
+          <text>{{item.minutes}} 分钟 · {{item.percent}}%</text>
+        </view>
+        <view class="balance-line"><view style="width: {{item.percent}}%; background: {{item.accent}};"></view></view>
+      </view>
+      <text wx:if="{{skills.length === 0}}" class="empty-copy">添加技能并完成一次学习后，这里会出现投入分布。</text>
+    </view>
+  </view>
+
+  <view class="insight-card">
+    <text>本周提醒</text>
+    <text class="insight-copy">{{insight}}</text>
+  </view>
+</view>
+<view wx:else class="loading">正在核对这一周的学习投入…</view>
+

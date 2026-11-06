@@ -2,6 +2,11 @@ package com.chenrjie.flowboard.web;
 
 import com.chenrjie.flowboard.auth.DuplicateUsernameException;
 import com.chenrjie.flowboard.auth.RegistrationDisabledException;
+import com.chenrjie.flowboard.auth.token.InvalidTokenException;
+import com.chenrjie.flowboard.auth.wechat.WeChatAuthenticationException;
+import com.chenrjie.flowboard.auth.wechat.WeChatUnavailableException;
+import com.chenrjie.flowboard.study.StudyConflictException;
+import com.chenrjie.flowboard.study.StudyNotFoundException;
 import com.chenrjie.flowboard.task.TaskNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +32,42 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleNotFound(TaskNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(errorBody(HttpStatus.NOT_FOUND, exception.getMessage()));
+    }
+
+    @ExceptionHandler(StudyNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleStudyNotFound(StudyNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(errorBody(HttpStatus.NOT_FOUND, exception.getMessage()));
+    }
+
+    @ExceptionHandler(StudyConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleStudyConflict(StudyConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(HttpStatus.CONFLICT, exception.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidToken(InvalidTokenException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(errorBody(HttpStatus.UNAUTHORIZED, exception.getMessage()));
+    }
+
+    @ExceptionHandler(WeChatUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleWeChatUnavailable(WeChatUnavailableException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(errorBody(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage()));
+    }
+
+    @ExceptionHandler(WeChatAuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleWeChatAuthentication(WeChatAuthenticationException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(errorBody(HttpStatus.UNAUTHORIZED, exception.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException exception) {
+        return ResponseEntity.badRequest()
+                .body(errorBody(HttpStatus.BAD_REQUEST, exception.getMessage()));
     }
 
     @ExceptionHandler(DuplicateUsernameException.class)

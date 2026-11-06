@@ -1,0 +1,86 @@
+<view class="page" wx:if="{{!loading}}">
+  <text class="eyebrow">多线学习，也要留出呼吸</text>
+  <text class="page-title">你的技能组合。</text>
+  <text class="page-subtitle">同时学习不等于同时推进。给每项技能一个真实可承受的每周预算。</text>
+
+  <button class="primary-button add-skill" bindtap="openDialog">+ 添加技能</button>
+
+  <view wx:if="{{skills.length}}" class="summary-strip">
+    <view><text>技能数量</text><text class="summary-value">{{skills.length}}</text></view>
+    <view><text>本周计划</text><text class="summary-value">{{totalTarget}} 分钟</text></view>
+    <view><text>本周投入</text><text class="summary-value">{{totalDone}} 分钟</text></view>
+  </view>
+
+  <view wx:if="{{skills.length === 0}}" class="empty-state skill-empty">
+    <view class="empty-mark">02</view>
+    <text class="empty-title">还没有正在学习的技能</text>
+    <text class="empty-copy">从一个最想提升、也最愿意在下班后投入的项目开始。</text>
+    <button class="primary-button accent-button empty-action" bindtap="openDialog">添加技能</button>
+  </view>
+
+  <view wx:else class="skill-list">
+    <view wx:for="{{skills}}" wx:key="id" class="skill-card card" style="border-top-color: {{item.accent}};">
+      <view class="skill-top">
+        <view class="skill-heading">
+          <view class="skill-dot" style="background: {{item.accent}};"></view>
+          <text>{{item.name}}</text>
+        </view>
+        <text class="skill-percent">{{item.percent}}%</text>
+      </view>
+      <text class="skill-description">{{item.description || '还没有填写目标，先保持稳定投入。'}}</text>
+      <view class="progress-line"><view style="width: {{item.percent}}%; background: {{item.accent}};"></view></view>
+      <view class="skill-meta">
+        <text>{{item.minutes}} / {{item.weeklyMinutes}} 分钟</text>
+        <text>{{item.sessionsPerWeek}} 次/周</text>
+        <text>{{item.plannedCount}} 项待完成</text>
+      </view>
+      <button class="generate-button" data-id="{{item.id}}" bindtap="generate">
+        生成本周计划 <text>→</text>
+      </button>
+    </view>
+  </view>
+</view>
+<view wx:else class="loading">正在整理你的技能组合…</view>
+
+<view wx:if="{{dialogOpen}}" class="dialog-mask" bindtap="closeDialog">
+  <view class="dialog" catchtap="noop">
+    <text class="dialog-title">添加一项想坚持的技能</text>
+    <label class="field">
+      <text class="field-label">技能名称</text>
+      <input class="field-input" placeholder="例如：英语口语、Java、产品设计" value="{{name}}" bindinput="onName" />
+    </label>
+    <label class="field">
+      <text class="field-label">一句话目标</text>
+      <textarea class="field-area" placeholder="希望在什么场景中用上这项技能？" value="{{description}}" bindinput="onDescription" />
+    </label>
+    <view class="field">
+      <text class="field-label">每周投入</text>
+      <picker range="{{weeklyLabels}}" value="{{weeklyIndex}}" bindchange="onWeekly">
+        <view class="field-picker">{{weeklyLabels[weeklyIndex]}}</view>
+      </picker>
+    </view>
+    <view class="field">
+      <text class="field-label">单次时长</text>
+      <picker range="{{sessionOptions}}" value="{{sessionIndex}}" bindchange="onSession">
+        <view class="field-picker">{{sessionOptions[sessionIndex]}} 分钟</view>
+      </picker>
+    </view>
+    <view class="field">
+      <text class="field-label">每周安排次数</text>
+      <picker range="{{countOptions}}" value="{{countIndex}}" bindchange="onCount">
+        <view class="field-picker">{{countOptions[countIndex]}} 次</view>
+      </picker>
+    </view>
+    <view class="field">
+      <text class="field-label">标记颜色</text>
+      <view class="accent-list">
+        <button wx:for="{{accentOptions}}" wx:key="*this" class="{{accent === item ? 'selected' : ''}}" style="background: {{item}};" data-accent="{{item}}" bindtap="chooseAccent"></button>
+      </view>
+    </view>
+    <view class="dialog-actions">
+      <button class="secondary-button" bindtap="closeDialog">取消</button>
+      <button class="primary-button accent-button" loading="{{saving}}" bindtap="saveSkill">添加技能</button>
+    </view>
+  </view>
+</view>
+

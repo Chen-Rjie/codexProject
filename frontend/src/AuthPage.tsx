@@ -66,19 +66,19 @@ export function AuthPage({ bootError, onAuthenticated }: AuthPageProps) {
         </div>
 
         <div className="auth-story-copy">
-          <span className="auth-kicker">专注 · 推进 · 交付</span>
+          <span className="auth-kicker">多技能 · 轻计划 · 可持续</span>
           <h1>
-            让每一次推进
+            让学习节奏
             <br />
-            都清晰可见。
+            融进下班生活。
           </h1>
-          <p>Spring Boot 为稳固底座，React 为流畅体验。你的任务、节奏和进度都只属于你。</p>
+          <p>不必每天都学很多。按真实可用时间安排多项技能，让一小步也能长期累积。</p>
         </div>
 
         <div className="auth-feature-list">
           <div>
             <span><LayersIcon /></span>
-            <p><strong>个人任务空间</strong>每位用户拥有独立看板</p>
+            <p><strong>多技能学习</strong>同时规划不同成长方向</p>
           </div>
           <div>
             <span><SparkIcon /></span>
@@ -86,7 +86,7 @@ export function AuthPage({ bootError, onAuthenticated }: AuthPageProps) {
           </div>
           <div>
             <span><ArrowIcon /></span>
-            <p><strong>MySQL 数据层</strong>可靠保存每一次更新</p>
+            <p><strong>学习记录</strong>可靠保存每一次真实投入</p>
           </div>
         </div>
 
@@ -98,7 +98,7 @@ export function AuthPage({ bootError, onAuthenticated }: AuthPageProps) {
         <div className="auth-card">
           <div className="auth-card-heading">
             <span className="eyebrow">{mode === 'login' ? '欢迎回来' : '创建工作区'}</span>
-            <h2>{mode === 'login' ? '登录 Flowboard' : '建立你的账号'}</h2>
+            <h2>{mode === 'login' ? '登录 Flowboard' : '建立学习账号'}</h2>
             <p>
               {mode === 'login'
                 ? '继续处理今天最重要的任务。'

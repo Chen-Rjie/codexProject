@@ -27,6 +27,12 @@ public class AppUser {
     @Column(nullable = false, length = 80)
     private String displayName;
 
+    @Column(name = "wechat_open_id", unique = true, length = 64)
+    private String wechatOpenId;
+
+    @Column(name = "wechat_union_id", length = 64)
+    private String wechatUnionId;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -57,6 +63,22 @@ public class AppUser {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getWechatOpenId() {
+        return wechatOpenId;
+    }
+
+    public void setWechatOpenId(String wechatOpenId) {
+        this.wechatOpenId = wechatOpenId;
+    }
+
+    public String getWechatUnionId() {
+        return wechatUnionId;
+    }
+
+    public void setWechatUnionId(String wechatUnionId) {
+        this.wechatUnionId = wechatUnionId;
     }
 
     public void setDisplayName(String displayName) {

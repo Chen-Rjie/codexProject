@@ -1,0 +1,15 @@
+{
+  "appid": "wx7fae415219a6bb59",
+  "projectname": "flowboard-study",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "./",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "minified": true,
+    "postcss": true,
+    "urlCheck": false,
+    "useCompilerPlugins": ["typescript"]
+  },
+  "condition": {}
+}
