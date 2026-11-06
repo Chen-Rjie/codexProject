@@ -1,0 +1,24 @@
+{
+  "name": "codex-project",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "npm run services",
+    "predebug": "npm run services",
+    "dev": "concurrently -n api,web -c green,cyan \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "node scripts/run-maven.mjs spring-boot:run",
+    "dev:web": "npm --prefix frontend run dev",
+    "debug": "concurrently -n api,web -c green,cyan \"npm run debug:api\" \"npm run dev:web\"",
+    "debug:api": "node scripts/run-maven.mjs spring-boot:run -Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:5005",
+    "services": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-services.ps1",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "node scripts/run-maven.mjs clean package",
+    "build:web": "npm --prefix frontend run build",
+    "test": "npm run test:api",
+    "test:api": "node scripts/run-maven.mjs test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
+

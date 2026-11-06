@@ -1,0 +1,24 @@
+# Java / Maven
+backend/target/
+backend/data/
+.tools/
+*.log
+
+# Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Local configuration
+.env
+.env.local
+*.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+

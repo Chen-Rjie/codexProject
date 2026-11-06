@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:flowboard_test;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+  session:
+    store-type: none
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
+
+app:
+  cors:
+    allowed-origins: http://localhost:5173
+  auth:
+    registration-enabled: true
+
