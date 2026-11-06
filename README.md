@@ -195,15 +195,15 @@ npm run typecheck:miniprogram
 
 小程序生产环境使用微信云托管时，不需要单独申请 API 域名：
 
-1. 构建并推送 `backend/Dockerfile`
+1. 使用仓库根目录 `Dockerfile` 构建并推送镜像
 2. 在微信云托管创建 `flowboard-api` 服务，端口设置为 `4000`
 3. 为服务配置腾讯云 MySQL、Redis 的私网地址
-4. 设置 `SPRING_PROFILES_ACTIVE=cloud`
+4. 使用仓库根目录 `Dockerfile` 构建；镜像已内置 `SPRING_PROFILES_ACTIVE=cloud`
 5. 将 `miniprogram/config.ts` 中的 `USE_CLOUD_CONTAINER` 改为 `true`
 6. 配置 `CLOUD_ENV_ID` 和 `CLOUD_SERVICE_NAME`
 7. 小程序端由 `wx.request` 自动切换为 `wx.cloud.callContainer`
 
-`cloud` Profile 会先启动 4000 端口，再在后台执行 Flyway 迁移，避免 Serverless MySQL 冷启动期间被 Readiness/Liveness 检查误杀。
+`cloud` Profile 会先启动 4000 端口，再在后台执行 Flyway 迁移，避免 Serverless MySQL 冷启动期间被 Readiness/Liveness 检查误杀。若云平台显式设置 `SPRING_PROFILES_ACTIVE`，该值会覆盖镜像默认值，因此应保持为 `cloud` 或留空。
 
 本地 Web 端通过 SSH 隧道访问腾讯云后端，不开放公网 API：
 

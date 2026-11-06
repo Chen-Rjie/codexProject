@@ -16,5 +16,6 @@ COPY --from=build /build/backend/target/flowboard-api-0.1.0.jar app.jar
 
 USER app
 EXPOSE 4000
+ENV SPRING_PROFILES_ACTIVE="cloud"
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
