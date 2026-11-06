@@ -1,5 +1,6 @@
 package com.chenrjie.flowboard.web;
 
+import com.chenrjie.flowboard.config.DatabaseMigrationStatus;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -20,10 +22,16 @@ import java.util.Map;
 public class HealthController {
 
     private final DataSource dataSource;
+    private final DatabaseMigrationStatus migrationStatus;
     private final StringRedisTemplate redis;
 
-    public HealthController(DataSource dataSource, ObjectProvider<StringRedisTemplate> redisProvider) {
+    public HealthController(
+            DataSource dataSource,
+            DatabaseMigrationStatus migrationStatus,
+            ObjectProvider<StringRedisTemplate> redisProvider
+    ) {
         this.dataSource = dataSource;
+        this.migrationStatus = migrationStatus;
         this.redis = redisProvider.getIfAvailable();
     }
 
@@ -39,22 +47,24 @@ public class HealthController {
     @GetMapping("/database")
     public ResponseEntity<Map<String, Object>> databaseHealth() {
         try (Connection connection = dataSource.getConnection()) {
-            boolean valid = connection.isValid(3);
-            Map<String, Object> body = Map.of(
-                    "status", valid ? "UP" : "DOWN",
-                    "component", "mysql",
-                    "timestamp", Instant.now()
-            );
-            return ResponseEntity.status(valid ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(body);
+            boolean ready = connection.isValid(3) && migrationStatus.isReady();
+            return ResponseEntity.status(ready ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(databaseBody(ready));
         } catch (SQLException exception) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of(
-                            "status", "DOWN",
-                            "component", "mysql",
-                            "timestamp", Instant.now()
-                    ));
+                    .body(databaseBody(false));
         }
+    }
+
+    private Map<String, Object> databaseBody(boolean ready) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", ready ? "UP" : "DOWN");
+        body.put("component", "mysql");
+        body.put("migration", migrationStatus.getState().name());
+        body.put("migrationsExecuted", migrationStatus.getMigrationsExecuted());
+        body.put("migrationUpdatedAt", migrationStatus.getUpdatedAt().toString());
+        body.put("timestamp", Instant.now());
+        return body;
     }
 
     @GetMapping("/redis")

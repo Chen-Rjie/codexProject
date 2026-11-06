@@ -8,7 +8,6 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $WxcloudEntry = Join-Path $ProjectRoot ".tools\wxcloud\node_modules\@wxcloud\cli\bin\run"
-$Backend = Join-Path $ProjectRoot "backend"
 
 if (-not (Test-Path $WxcloudEntry)) {
     throw "WeChat CloudRun CLI is not installed under .tools/wxcloud."
@@ -41,10 +40,11 @@ $EnvParams = [ordered]@{
 
 Push-Location $ProjectRoot
 try {
-    & $Node $WxcloudEntry run:deploy $Backend `
+    & $Node $WxcloudEntry run:deploy $ProjectRoot `
         "--envId=$EnvId" `
         "--serviceName=$ServiceName" `
         "--containerPort=$ContainerPort" `
+        "--targetDir=." `
         "--dockerfile=Dockerfile" `
         "--envParamsJson=$EnvParams" `
         "--remark=Deploy qingxue study API" `
