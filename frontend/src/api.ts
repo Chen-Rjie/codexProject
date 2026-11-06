@@ -15,7 +15,16 @@ import type {
 } from './study/studyTypes'
 
 const API_ROOT = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
+const ACCESS_KEY = 'flowboard.web.access.v1'
+const REFRESH_KEY = 'flowboard.web.refresh.v1'
 let pendingCurrentUser: Promise<AuthUser> | null = null
+
+interface TokenResponse {
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+  user: AuthUser
+}
 
 interface ApiErrorBody {
   message?: string
@@ -34,16 +43,19 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_ROOT}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
-  })
+function storeTokens(tokens: TokenResponse): AuthUser {
+  window.localStorage.setItem(ACCESS_KEY, tokens.accessToken)
+  window.localStorage.setItem(REFRESH_KEY, tokens.refreshToken)
+  return tokens.user
+}
 
+function clearTokens() {
+  window.localStorage.removeItem(ACCESS_KEY)
+  window.localStorage.removeItem(REFRESH_KEY)
+  pendingCurrentUser = null
+}
+
+async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let body: ApiErrorBody = {}
     try {
@@ -61,8 +73,53 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (response.status === 204) {
     return undefined as T
   }
-
   return (await response.json()) as T
+}
+
+async function publicRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_ROOT}${path}`, {
+    ...init,
+    credentials: 'omit',
+    headers: {
+      'Content-Type': 'application/json',
+      ...init.headers,
+    },
+  })
+  return parseResponse<T>(response)
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = window.localStorage.getItem(REFRESH_KEY)
+  if (!refreshToken) return false
+  try {
+    const tokens = await publicRequest<TokenResponse>('/auth/token/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    })
+    storeTokens(tokens)
+    return true
+  } catch {
+    clearTokens()
+    return false
+  }
+}
+
+async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+  const accessToken = window.localStorage.getItem(ACCESS_KEY)
+  const response = await fetch(`${API_ROOT}${path}`, {
+    ...init,
+    credentials: 'omit',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...init.headers,
+    },
+  })
+
+  if (response.status === 401 && retry && await refreshAccessToken()) {
+    return request<T>(path, init, false)
+  }
+  return parseResponse<T>(response)
 }
 
 export interface LoginInput {
@@ -85,29 +142,33 @@ export function getCurrentUser(): Promise<AuthUser> {
 }
 
 export function login(input: LoginInput): Promise<AuthUser> {
-  return request<AuthUser>('/auth/login', {
+  return publicRequest<TokenResponse>('/auth/token/login', {
     method: 'POST',
     body: JSON.stringify(input),
-  }).then((user) => {
+  }).then((tokens) => {
+    const user = storeTokens(tokens)
     pendingCurrentUser = Promise.resolve(user)
     return user
   })
 }
 
 export function register(input: RegisterInput): Promise<AuthUser> {
-  return request<AuthUser>('/auth/register', {
+  return publicRequest<TokenResponse>('/auth/token/register', {
     method: 'POST',
     body: JSON.stringify(input),
-  }).then((user) => {
+  }).then((tokens) => {
+    const user = storeTokens(tokens)
     pendingCurrentUser = Promise.resolve(user)
     return user
   })
 }
 
 export function logout(): Promise<void> {
-  return request<void>('/auth/logout', { method: 'POST' }).finally(() => {
-    pendingCurrentUser = null
-  })
+  const refreshToken = window.localStorage.getItem(REFRESH_KEY)
+  return request<void>('/auth/token/logout', {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  }).finally(clearTokens)
 }
 
 export function listTasks(filters: TaskFilters, signal?: AbortSignal): Promise<Task[]> {
@@ -198,6 +259,10 @@ export function skipStudyItem(id: number, reason = ''): Promise<StudyItem> {
     method: 'POST',
     body: JSON.stringify({ reason }),
   })
+}
+
+export function reflowStudyItems(): Promise<{ movedItems: number }> {
+  return request<{ movedItems: number }>('/study/items/reflow', { method: 'POST' })
 }
 
 export function deleteStudyItem(id: number): Promise<void> {

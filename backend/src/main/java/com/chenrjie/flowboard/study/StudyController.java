@@ -8,6 +8,7 @@ import com.chenrjie.flowboard.study.StudyDtos.SessionResponse;
 import com.chenrjie.flowboard.study.StudyDtos.SkipItemRequest;
 import com.chenrjie.flowboard.study.StudyDtos.SkillRequest;
 import com.chenrjie.flowboard.study.StudyDtos.SkillResponse;
+import com.chenrjie.flowboard.study.StudyDtos.ReflowResponse;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -114,6 +115,11 @@ public class StudyController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteItem(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable Long id) {
         service.deleteItem(principal.id(), id);
+    }
+
+    @PostMapping("/items/reflow")
+    public ReflowResponse reflowItems(@AuthenticationPrincipal AppUserPrincipal principal) {
+        return new ReflowResponse(service.reflowMissedItems(principal.id()));
     }
 
     @GetMapping("/sessions")

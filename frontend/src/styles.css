@@ -2007,6 +2007,40 @@ select:focus-visible {
   color: white;
 }
 
+.study-week-actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.study-week-switcher {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  padding: 4px;
+  background: rgba(255, 253, 248, 0.78);
+  border: 1px solid #ddd9d0;
+  border-radius: 12px;
+}
+
+.study-week-switcher button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  color: #647069;
+  font-size: 10px;
+  font-weight: 650;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.study-week-switcher button:hover {
+  color: #17231f;
+  background: #efede6;
+}
+
 .study-empty-state {
   display: grid;
   min-height: calc(100vh - 120px);
@@ -3206,6 +3240,24 @@ select:focus-visible {
   .study-page-heading .button {
     width: 100%;
     margin-top: 20px;
+  }
+
+  .study-week-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 18px;
+  }
+
+  .study-week-switcher {
+    justify-content: space-between;
+  }
+
+  .study-week-switcher button {
+    flex: 1;
+  }
+
+  .study-page-heading > .study-week-switcher {
+    margin-top: 18px;
   }
 
   .study-page-heading h1 {

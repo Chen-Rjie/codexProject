@@ -1,4 +1,9 @@
-import { API_BASE_URL } from '../config'
+import {
+  API_BASE_URL,
+  CLOUD_ENV_ID,
+  CLOUD_SERVICE_NAME,
+  USE_CLOUD_CONTAINER,
+} from '../config'
 import type { AuthUser } from '../app'
 import { addDays, localDate, weekStart } from './date'
 
@@ -81,18 +86,51 @@ export function clearSession() {
 }
 
 function rawRequest<T>(options: RequestOptions): Promise<T> {
+  const accessToken = wx.getStorageSync<string>(ACCESS_KEY)
+  const header = {
+    'Content-Type': 'application/json',
+    ...(options.auth !== false && accessToken
+      ? { Authorization: `Bearer ${accessToken}` }
+      : {}),
+  }
+
+  if (USE_CLOUD_CONTAINER) {
+    return new Promise((resolve, reject) => {
+      wx.cloud.callContainer({
+        config: {
+          env: CLOUD_ENV_ID,
+        },
+        path: `/api${options.path}`,
+        method: options.method || 'GET',
+        data: options.data,
+        header: {
+          ...header,
+          'X-WX-SERVICE': CLOUD_SERVICE_NAME,
+        },
+        success(response) {
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            resolve(response.data as T)
+            return
+          }
+          const body = response.data as { message?: string }
+          reject({
+            status: response.statusCode,
+            message: body?.message || `请求失败（${response.statusCode}）`,
+          })
+        },
+        fail(error) {
+          reject({ status: 0, message: error.errMsg || '云托管连接失败' })
+        },
+      })
+    })
+  }
+
   return new Promise((resolve, reject) => {
-    const accessToken = wx.getStorageSync<string>(ACCESS_KEY)
     wx.request({
       url: `${API_BASE_URL}${options.path}`,
       method: options.method || 'GET',
       data: options.data,
-      header: {
-        'Content-Type': 'application/json',
-        ...(options.auth !== false && accessToken
-          ? { Authorization: `Bearer ${accessToken}` }
-          : {}),
-      },
+      header,
       success(response) {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           resolve(response.data as T)
@@ -209,6 +247,22 @@ export function createSkill(data: {
   return request<StudySkill>({ path: '/study/skills', method: 'POST', data })
 }
 
+export function updateSkill(id: number, data: {
+  name: string
+  description: string
+  accent: string
+  weeklyMinutes: number
+  sessionMinutes: number
+  sessionsPerWeek: number
+  active: boolean
+}) {
+  return request<StudySkill>({ path: `/study/skills/${id}`, method: 'PUT', data })
+}
+
+export function deleteSkill(id: number) {
+  return request<void>({ path: `/study/skills/${id}`, method: 'DELETE' })
+}
+
 export function generatePlan(skillId: number) {
   return request<StudyItem[]>({
     path: `/study/skills/${skillId}/generate-plan?weekStart=${weekStart()}`,
@@ -244,6 +298,27 @@ export function skipItem(id: number) {
     method: 'POST',
     data: { reason: '小程序中暂时跳过' },
   })
+}
+
+export function reflowItems() {
+  return request<{ movedItems: number }>({ path: '/study/items/reflow', method: 'POST' })
+}
+
+export async function bindWeChat(): Promise<AuthUser> {
+  const loginResult = await new Promise<WechatMiniprogram.LoginSuccessCallbackResult>(
+    (resolve, reject) => {
+      wx.login({ success: resolve, fail: reject })
+    },
+  )
+  const user = await request<AuthUser>({
+    path: '/auth/wechat/bind',
+    method: 'POST',
+    data: { code: loginResult.code },
+  })
+  wx.setStorageSync(USER_KEY, user)
+  const app = getApp<{ globalData: { user: AuthUser | null } }>()
+  app.globalData.user = user
+  return user
 }
 
 export function listSessions() {

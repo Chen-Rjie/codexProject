@@ -3,6 +3,7 @@ import {
   listItems,
   listSessions,
   listSkills,
+  reflowItems,
   type StudyItem,
   type StudySession,
   type StudySkill,
@@ -23,6 +24,7 @@ interface SkillView extends StudySkill {
 Page({
   data: {
     loading: true,
+    selectedWeekStart: weekStart(),
     totalMinutes: 0,
     targetMinutes: 0,
     activeDays: 0,
@@ -47,7 +49,8 @@ Page({
   async loadData() {
     this.setData({ loading: true })
     try {
-      const start = weekStart()
+      const start = this.data.selectedWeekStart
+      await reflowItems()
       const end = addDays(start, 6)
       const [skills, items, sessions] = await Promise.all([
         listSkills(),
@@ -103,6 +106,21 @@ Page({
       this.setData({ loading: false })
       wx.showToast({ title: (error as { message?: string }).message || '加载失败', icon: 'none' })
     }
+  },
+
+  previousWeek() {
+    this.setData({ selectedWeekStart: addDays(this.data.selectedWeekStart, -7) })
+    void this.loadData()
+  },
+
+  nextWeek() {
+    this.setData({ selectedWeekStart: addDays(this.data.selectedWeekStart, 7) })
+    void this.loadData()
+  },
+
+  currentWeek() {
+    this.setData({ selectedWeekStart: weekStart() })
+    void this.loadData()
   },
 
   calculateStreak(sessions: StudySession[]): number {

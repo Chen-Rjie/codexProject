@@ -4,6 +4,7 @@ import com.chenrjie.flowboard.auth.DuplicateUsernameException;
 import com.chenrjie.flowboard.auth.RegistrationDisabledException;
 import com.chenrjie.flowboard.auth.token.InvalidTokenException;
 import com.chenrjie.flowboard.auth.wechat.WeChatAuthenticationException;
+import com.chenrjie.flowboard.auth.wechat.WeChatAlreadyBoundException;
 import com.chenrjie.flowboard.auth.wechat.WeChatUnavailableException;
 import com.chenrjie.flowboard.study.StudyConflictException;
 import com.chenrjie.flowboard.study.StudyNotFoundException;
@@ -62,6 +63,12 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleWeChatAuthentication(WeChatAuthenticationException exception) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(errorBody(HttpStatus.UNAUTHORIZED, exception.getMessage()));
+    }
+
+    @ExceptionHandler(WeChatAlreadyBoundException.class)
+    public ResponseEntity<Map<String, Object>> handleWeChatBindConflict(WeChatAlreadyBoundException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(HttpStatus.CONFLICT, exception.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

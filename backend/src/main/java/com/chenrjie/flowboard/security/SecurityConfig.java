@@ -70,6 +70,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/wechat/login",
                                 "/api/auth/token/login",
+                                "/api/auth/token/register",
                                 "/api/auth/token/refresh",
                                 "/api/auth/token/logout"
                         ).permitAll()

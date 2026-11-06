@@ -13,6 +13,7 @@ export interface ActiveStudyTimer {
   item: StudyItem
   seconds: number
   running: boolean
+  startedAt: number | null
 }
 
 interface TodayViewProps {

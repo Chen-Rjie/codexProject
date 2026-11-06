@@ -1,4 +1,4 @@
-# Flowboard
+# 轻学计划
 
 面向上班族的多技能学习计划工具。后端使用 Java + Spring Boot，前端使用 React + TypeScript，业务数据存储在 MySQL，登录会话存储在 Redis。
 
@@ -189,7 +189,28 @@ VITE_API_URL=https://api.example.com/api npm run build:web
 npm run typecheck:miniprogram
 ```
 
-`touristappid` 和 `127.0.0.1` 只用于开发配置。正式提审前必须关闭 `ENABLE_PASSWORD_LOGIN` 并换成正式 AppID、AppSecret 和 HTTPS API 域名。
+当前 `project.config.json` 已写入开发 AppID。正式提审前必须关闭 `ENABLE_PASSWORD_LOGIN`，并配置生产 `WECHAT_APP_SECRET`。
+
+### 无域名生产模式
+
+小程序生产环境使用微信云托管时，不需要单独申请 API 域名：
+
+1. 构建并推送 `backend/Dockerfile`
+2. 在微信云托管创建 `flowboard-api` 服务，端口设置为 `4000`
+3. 为服务配置腾讯云 MySQL、Redis 的私网地址
+4. 将 `miniprogram/config.ts` 中的 `USE_CLOUD_CONTAINER` 改为 `true`
+5. 配置 `CLOUD_ENV_ID` 和 `CLOUD_SERVICE_NAME`
+6. 小程序端由 `wx.request` 自动切换为 `wx.cloud.callContainer`
+
+本地 Web 端通过 SSH 隧道访问腾讯云后端，不开放公网 API：
+
+```powershell
+powershell -File scripts/ssh-tunnel.ps1 `
+  -SshHost 腾讯云服务器IP `
+  -SshUser ubuntu
+```
+
+隧道建立后，本地 Web 继续访问 `http://127.0.0.1:4000`。React 管理端现已使用 Bearer Token，不再依赖跨域 Cookie。生产服务器建议只允许后端访问 MySQL/Redis 私网地址。
 
 小程序认证接口：
 

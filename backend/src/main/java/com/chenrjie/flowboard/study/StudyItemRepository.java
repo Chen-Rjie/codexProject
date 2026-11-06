@@ -22,4 +22,10 @@ public interface StudyItemRepository extends JpaRepository<StudyItem, Long> {
     );
 
     Optional<StudyItem> findByIdAndOwnerId(Long id, Long ownerId);
+
+    List<StudyItem> findByOwnerIdAndStatusAndPlannedDateBeforeOrderByPlannedDateAscCreatedAtAsc(
+            Long ownerId,
+            StudyItemStatus status,
+            LocalDate before
+    );
 }

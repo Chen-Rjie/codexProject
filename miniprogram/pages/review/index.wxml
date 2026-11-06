@@ -2,6 +2,11 @@
   <text class="eyebrow">和自己核对一周</text>
   <text class="page-title">看见投入，而不只看见结果。</text>
   <text class="page-subtitle">学习计划不是考核表。复盘真实时间，给下一周一个更合适的节奏。</text>
+  <view class="review-switcher">
+    <button bindtap="previousWeek">← 上一周</button>
+    <button bindtap="currentWeek">本周</button>
+    <button bindtap="nextWeek">下一周 →</button>
+  </view>
 
   <view class="metric-grid">
     <view class="metric-card card">

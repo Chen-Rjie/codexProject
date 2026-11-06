@@ -2,6 +2,11 @@
   <text class="eyebrow">{{weekLabel}}</text>
   <text class="page-title">这一周，不追赶，只安排。</text>
   <text class="page-subtitle">把时间放进日程里，而不是留给“有空再说”。</text>
+  <view class="week-switcher">
+    <button bindtap="previousWeek">←</button>
+    <button bindtap="currentWeek">本周</button>
+    <button bindtap="nextWeek">→</button>
+  </view>
   <button class="primary-button add-plan" data-date="{{days[0].date}}" bindtap="openAdd">+ 添加安排</button>
 
   <view class="week-summary">

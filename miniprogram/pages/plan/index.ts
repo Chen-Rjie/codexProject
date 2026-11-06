@@ -4,6 +4,7 @@ import {
   ensureLogin,
   listItems,
   listSkills,
+  reflowItems,
   skipItem,
   type StudyItem,
   type StudySkill,
@@ -26,6 +27,7 @@ interface PlanDay {
 Page({
   data: {
     loading: true,
+    selectedWeekStart: weekStart(),
     weekLabel: '',
     scrollTarget: '',
     days: [] as PlanDay[],
@@ -55,7 +57,8 @@ Page({
   async loadData() {
     this.setData({ loading: true })
     try {
-      const start = weekStart()
+      const start = this.data.selectedWeekStart
+      await reflowItems()
       const [skills, items] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
@@ -93,6 +96,21 @@ Page({
       this.setData({ loading: false })
       wx.showToast({ title: (error as { message?: string }).message || '加载失败', icon: 'none' })
     }
+  },
+
+  previousWeek() {
+    this.setData({ selectedWeekStart: addDays(this.data.selectedWeekStart, -7) })
+    void this.loadData()
+  },
+
+  nextWeek() {
+    this.setData({ selectedWeekStart: addDays(this.data.selectedWeekStart, 7) })
+    void this.loadData()
+  },
+
+  currentWeek() {
+    this.setData({ selectedWeekStart: weekStart() })
+    void this.loadData()
   },
 
   openAdd(event: WechatMiniprogram.BaseEvent) {

@@ -1,9 +1,11 @@
 package com.chenrjie.flowboard.auth.token;
 
 import com.chenrjie.flowboard.auth.AuthDtos.LoginRequest;
+import com.chenrjie.flowboard.auth.AuthDtos.RegisterRequest;
 import com.chenrjie.flowboard.auth.AuthService;
 import com.chenrjie.flowboard.auth.token.TokenAuthDtos.TokenResponse;
 import com.chenrjie.flowboard.auth.wechat.WeChatMiniappClient;
+import com.chenrjie.flowboard.auth.wechat.WeChatAlreadyBoundException;
 import com.chenrjie.flowboard.security.AppUserPrincipal;
 import com.chenrjie.flowboard.user.AppUser;
 import com.chenrjie.flowboard.user.AppUserRepository;
@@ -43,6 +45,12 @@ public class MiniappAuthService {
         return TokenResponse.from(user, tokenService.issue(user.getId()));
     }
 
+    public TokenResponse registerWithPassword(RegisterRequest request) {
+        AppUserPrincipal principal = authService.register(request);
+        AppUser user = users.findById(principal.id()).orElseThrow();
+        return TokenResponse.from(user, tokenService.issue(user.getId()));
+    }
+
     public TokenResponse loginWithWeChat(String code) {
         WeChatMiniappClient.WeChatSession session = weChatClient.exchangeCode(code);
         AppUser user = users.findByWechatOpenId(session.openId())
@@ -65,6 +73,20 @@ public class MiniappAuthService {
 
     public void logout(String accessToken, String refreshToken) {
         tokenService.revoke(accessToken, refreshToken);
+    }
+
+    public TokenAuthDtos.TokenUser bindWeChat(Long userId, String code) {
+        WeChatMiniappClient.WeChatSession session = weChatClient.exchangeCode(code);
+        AppUser current = users.findById(userId).orElseThrow();
+        AppUser existing = users.findByWechatOpenId(session.openId()).orElse(null);
+        if (existing != null && !existing.getId().equals(userId)) {
+            throw new WeChatAlreadyBoundException();
+        }
+        current.setWechatOpenId(session.openId());
+        if (session.unionId() != null) {
+            current.setWechatUnionId(session.unionId());
+        }
+        return TokenAuthDtos.TokenUser.from(users.save(current));
     }
 
     private AppUser createWeChatUser(WeChatMiniappClient.WeChatSession session) {

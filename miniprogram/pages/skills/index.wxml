@@ -24,8 +24,13 @@
         <view class="skill-heading">
           <view class="skill-dot" style="background: {{item.accent}};"></view>
           <text>{{item.name}}</text>
+          <text wx:if="{{!item.active}}" class="paused-label">已暂停</text>
         </view>
-        <text class="skill-percent">{{item.percent}}%</text>
+        <view class="skill-actions">
+          <button data-id="{{item.id}}" bindtap="editSkill">编辑</button>
+          <button data-id="{{item.id}}" bindtap="toggleActive">{{item.active ? '暂停' : '恢复'}}</button>
+          <button data-id="{{item.id}}" bindtap="removeSkill">删除</button>
+        </view>
       </view>
       <text class="skill-description">{{item.description || '还没有填写目标，先保持稳定投入。'}}</text>
       <view class="progress-line"><view style="width: {{item.percent}}%; background: {{item.accent}};"></view></view>
@@ -44,7 +49,7 @@
 
 <view wx:if="{{dialogOpen}}" class="dialog-mask" bindtap="closeDialog">
   <view class="dialog" catchtap="noop">
-    <text class="dialog-title">添加一项想坚持的技能</text>
+    <text class="dialog-title">{{editingId ? '调整学习节奏' : '添加一项想坚持的技能'}}</text>
     <label class="field">
       <text class="field-label">技能名称</text>
       <input class="field-input" placeholder="例如：英语口语、Java、产品设计" value="{{name}}" bindinput="onName" />
@@ -79,7 +84,7 @@
     </view>
     <view class="dialog-actions">
       <button class="secondary-button" bindtap="closeDialog">取消</button>
-      <button class="primary-button accent-button" loading="{{saving}}" bindtap="saveSkill">添加技能</button>
+      <button class="primary-button accent-button" loading="{{saving}}" bindtap="saveSkill">{{editingId ? '保存修改' : '添加技能'}}</button>
     </view>
   </view>
 </view>

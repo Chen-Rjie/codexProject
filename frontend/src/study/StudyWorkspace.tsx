@@ -9,6 +9,7 @@ import {
   listStudyItems,
   listStudySessions,
   listStudySkills,
+  reflowStudyItems,
   skipStudyItem,
   updateStudySkill,
 } from '../api'
@@ -53,17 +54,41 @@ const navItems: Array<{
   { id: 'review', label: '学习复盘', icon: ChartIcon },
 ]
 
+const TIMER_STORAGE_KEY = 'flowboard.study.timer.v1'
+
+function loadStoredTimer(userId: number): ActiveStudyTimer | null {
+  try {
+    const value = window.localStorage.getItem(`${TIMER_STORAGE_KEY}.${userId}`)
+    if (!value) return null
+    const timer = JSON.parse(value) as ActiveStudyTimer
+    if (!timer.item?.id) return null
+    if (timer.running && timer.startedAt) {
+      timer.seconds = Math.max(
+        timer.seconds,
+        Math.floor((Date.now() - timer.startedAt) / 1000),
+      )
+    }
+    return timer
+  } catch {
+    return null
+  }
+}
+
 export function StudyWorkspace({
   user,
   onLogout,
   onSessionExpired,
 }: StudyWorkspaceProps) {
+  const timerStorageKey = `${TIMER_STORAGE_KEY}.${user.id}`
   const today = localIsoDate()
-  const weekStart = weekStartIso()
-  const weekEnd = addDays(weekStart, 6)
+  const currentWeekStart = weekStartIso()
+  const currentWeekEnd = addDays(currentWeekStart, 6)
+  const [selectedWeekStart, setSelectedWeekStart] = useState(currentWeekStart)
+  const selectedWeekEnd = addDays(selectedWeekStart, 6)
   const [view, setView] = useState<StudyView>('today')
   const [skills, setSkills] = useState<StudySkill[]>([])
-  const [items, setItems] = useState<StudyItem[]>([])
+  const [currentItems, setCurrentItems] = useState<StudyItem[]>([])
+  const [selectedItems, setSelectedItems] = useState<StudyItem[]>([])
   const [sessions, setSessions] = useState<StudySession[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -73,7 +98,7 @@ export function StudyWorkspace({
   const [editingSkill, setEditingSkill] = useState<StudySkill | null>(null)
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [itemDate, setItemDate] = useState(today)
-  const [timer, setTimer] = useState<ActiveStudyTimer | null>(null)
+  const [timer, setTimer] = useState<ActiveStudyTimer | null>(() => loadStoredTimer(user.id))
 
   const handleError = useCallback(
     (caught: unknown, fallback: string) => {
@@ -89,13 +114,19 @@ export function StudyWorkspace({
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [nextSkills, nextItems, nextSessions] = await Promise.all([
+      await reflowStudyItems()
+      const selectedRequest = selectedWeekStart === currentWeekStart
+        ? Promise.resolve<StudyItem[]>([])
+        : listStudyItems(selectedWeekStart, selectedWeekEnd)
+      const [nextSkills, nextCurrentItems, nextSelectedItems, nextSessions] = await Promise.all([
         listStudySkills(),
-        listStudyItems(weekStart, weekEnd),
-        listStudySessions(addDays(today, -30), weekEnd),
+        listStudyItems(currentWeekStart, currentWeekEnd),
+        selectedRequest,
+        listStudySessions(addDays(today, -30), currentWeekEnd),
       ])
       setSkills(nextSkills)
-      setItems(nextItems)
+      setCurrentItems(nextCurrentItems)
+      setSelectedItems(selectedWeekStart === currentWeekStart ? nextCurrentItems : nextSelectedItems)
       setSessions(nextSessions)
       setError('')
     } catch (caught) {
@@ -103,7 +134,7 @@ export function StudyWorkspace({
     } finally {
       setLoading(false)
     }
-  }, [handleError, today, weekEnd, weekStart])
+  }, [currentWeekEnd, currentWeekStart, handleError, selectedWeekEnd, selectedWeekStart, today])
 
   useEffect(() => {
     void loadData()
@@ -111,15 +142,27 @@ export function StudyWorkspace({
 
   useEffect(() => {
     if (!timer?.running) return
-    const interval = window.setInterval(() => {
-      setTimer((current) =>
-        current?.running
-          ? { ...current, seconds: current.seconds + 1 }
-          : current,
-      )
-    }, 1000)
+    const tick = () => {
+      setTimer((current) => {
+        if (!current?.running || !current.startedAt) return current
+        return {
+          ...current,
+          seconds: Math.max(0, Math.floor((Date.now() - current.startedAt) / 1000)),
+        }
+      })
+    }
+    tick()
+    const interval = window.setInterval(tick, 1000)
     return () => window.clearInterval(interval)
-  }, [timer?.running])
+  }, [timer?.running, timer?.startedAt])
+
+  useEffect(() => {
+    if (timer) {
+      window.localStorage.setItem(timerStorageKey, JSON.stringify(timer))
+    } else {
+      window.localStorage.removeItem(timerStorageKey)
+    }
+  }, [timer, timerStorageKey])
 
   function openCreateSkill() {
     setEditingSkill(null)
@@ -145,7 +188,7 @@ export function StudyWorkspace({
       await updateStudySkill(editingSkill.id, input)
     } else {
       const created = await createStudySkill(input)
-      await generateStudyWeek(created.id, weekStart)
+      await generateStudyWeek(created.id, currentWeekStart)
     }
     await loadData()
   }
@@ -166,7 +209,7 @@ export function StudyWorkspace({
   async function generatePlan(skill: StudySkill) {
     setBusySkillId(skill.id)
     try {
-      const generated = await generateStudyWeek(skill.id, weekStart)
+      const generated = await generateStudyWeek(skill.id, currentWeekStart)
       await loadData()
       if (generated.length === 0) {
         setError('这项技能本周已经有安排，没有重复生成。')
@@ -210,7 +253,25 @@ export function StudyWorkspace({
   }
 
   function startTimer(item: StudyItem) {
-    setTimer({ item, seconds: 0, running: true })
+    setTimer({ item, seconds: 0, running: true, startedAt: Date.now() })
+  }
+
+  function toggleTimer() {
+    setTimer((current) => {
+      if (!current) return current
+      if (current.running) {
+        return {
+          ...current,
+          running: false,
+          startedAt: null,
+        }
+      }
+      return {
+        ...current,
+        running: true,
+        startedAt: Date.now() - current.seconds * 1000,
+      }
+    })
   }
 
   async function finishTimer() {
@@ -224,16 +285,23 @@ export function StudyWorkspace({
   }
 
   const weekSessions = sessions.filter(
-    (session) => session.studiedOn >= weekStart && session.studiedOn <= weekEnd,
+    (session) => session.studiedOn >= currentWeekStart && session.studiedOn <= currentWeekEnd,
   )
+  const selectedSessions = sessions.filter(
+    (session) => session.studiedOn >= selectedWeekStart && session.studiedOn <= selectedWeekEnd,
+  )
+
+  function moveWeek(offset: number) {
+    setSelectedWeekStart((current) => addDays(current, offset * 7))
+  }
 
   return (
     <div className="study-app-shell">
       <aside className="study-sidebar">
         <div>
-          <a className="brand" href="/" aria-label="Flowboard 学习计划首页">
+          <a className="brand" href="/" aria-label="轻学计划首页">
             <span className="brand-mark"><span /><span /><span /></span>
-            <span>flowboard</span>
+            <span>轻学计划</span>
           </a>
           <p className="study-sidebar-caption">给下班后的你，一条可持续的学习路径。</p>
 
@@ -314,18 +382,16 @@ export function StudyWorkspace({
               <TodayView
                 displayName={user.displayName}
                 today={today}
-                weekStart={weekStart}
+                weekStart={currentWeekStart}
                 skills={skills}
-                items={items}
+                items={currentItems}
                 sessions={sessions}
                 timer={timer}
                 busyItemId={busyItemId}
                 onCreateSkill={openCreateSkill}
                 onCreateItem={() => openCreateItem(today)}
                 onStart={startTimer}
-                onToggleTimer={() =>
-                  setTimer((current) => current ? { ...current, running: !current.running } : current)
-                }
+                onToggleTimer={toggleTimer}
                 onFinishTimer={() => void finishTimer()}
                 onQuickComplete={(item) => void completeItem(item)}
                 onSkip={(item) => void skipItem(item)}
@@ -334,7 +400,7 @@ export function StudyWorkspace({
             {view === 'skills' && (
               <SkillsView
                 skills={skills}
-                items={items}
+                items={currentItems}
                 sessions={weekSessions}
                 busySkillId={busySkillId}
                 onCreate={openCreateSkill}
@@ -345,23 +411,29 @@ export function StudyWorkspace({
             )}
             {view === 'plan' && (
               <PlanView
-                weekStart={weekStart}
+                weekStart={selectedWeekStart}
                 today={today}
                 skills={skills}
-                items={items}
+                items={selectedItems}
                 busyItemId={busyItemId}
                 onAddItem={openCreateItem}
                 onComplete={(item) => void completeItem(item)}
                 onSkip={(item) => void skipItem(item)}
+                onPrevious={() => moveWeek(-1)}
+                onNext={() => moveWeek(1)}
+                onCurrent={() => setSelectedWeekStart(currentWeekStart)}
               />
             )}
             {view === 'review' && (
               <ReviewView
                 today={today}
-                weekStart={weekStart}
+                weekStart={selectedWeekStart}
                 skills={skills}
-                sessions={weekSessions}
-                items={items}
+                sessions={selectedSessions}
+                items={selectedItems}
+                onPrevious={() => moveWeek(-1)}
+                onNext={() => moveWeek(1)}
+                onCurrent={() => setSelectedWeekStart(currentWeekStart)}
               />
             )}
           </>
@@ -382,7 +454,7 @@ export function StudyWorkspace({
         onSave={saveItem}
       />
 
-      {view === 'plan' && items.length > 0 && (
+      {view === 'plan' && selectedItems.length > 0 && (
         <button
           className="study-mobile-add"
           type="button"

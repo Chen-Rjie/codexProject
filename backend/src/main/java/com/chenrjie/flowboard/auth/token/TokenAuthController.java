@@ -1,10 +1,12 @@
 package com.chenrjie.flowboard.auth.token;
 
 import com.chenrjie.flowboard.auth.AuthDtos.LoginRequest;
+import com.chenrjie.flowboard.auth.AuthDtos.RegisterRequest;
 import com.chenrjie.flowboard.auth.token.TokenAuthDtos.RefreshTokenRequest;
 import com.chenrjie.flowboard.auth.token.TokenAuthDtos.TokenLogoutRequest;
 import com.chenrjie.flowboard.auth.token.TokenAuthDtos.TokenResponse;
 import com.chenrjie.flowboard.auth.token.TokenAuthDtos.WeChatLoginRequest;
+import com.chenrjie.flowboard.security.AppUserPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,9 +32,22 @@ public class TokenAuthController {
         return service.loginWithWeChat(request.code());
     }
 
+    @PostMapping("/wechat/bind")
+    public TokenAuthDtos.TokenUser bindWeChat(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @Valid @RequestBody WeChatLoginRequest request
+    ) {
+        return service.bindWeChat(principal.id(), request.code());
+    }
+
     @PostMapping("/token/login")
     public TokenResponse passwordLogin(@Valid @RequestBody LoginRequest request) {
         return service.loginWithPassword(request);
+    }
+
+    @PostMapping("/token/register")
+    public TokenResponse register(@Valid @RequestBody RegisterRequest request) {
+        return service.registerWithPassword(request);
     }
 
     @PostMapping("/token/refresh")

@@ -78,6 +78,9 @@ public final class StudyDtos {
     ) {
     }
 
+    public record ReflowResponse(int movedItems) {
+    }
+
     public record SkillResponse(
             Long id,
             String name,

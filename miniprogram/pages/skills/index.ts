@@ -1,10 +1,13 @@
 import {
   createSkill,
+  deleteSkill,
   ensureLogin,
   generatePlan,
   listItems,
   listSessions,
   listSkills,
+  reflowItems,
+  updateSkill,
   type StudyItem,
   type StudySession,
   type StudySkill,
@@ -24,6 +27,7 @@ Page({
     totalTarget: 0,
     totalDone: 0,
     dialogOpen: false,
+    editingId: null as number | null,
     saving: false,
     name: '',
     description: '',
@@ -51,6 +55,7 @@ Page({
     this.setData({ loading: true })
     try {
       const start = weekStart()
+      await reflowItems()
       const [skills, items, sessions] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
@@ -85,7 +90,16 @@ Page({
   },
 
   openDialog() {
-    this.setData({ dialogOpen: true, name: '', description: '', accent: '#DBFF73' })
+    this.setData({
+      dialogOpen: true,
+      editingId: null,
+      name: '',
+      description: '',
+      accent: '#DBFF73',
+      weeklyIndex: 2,
+      sessionIndex: 2,
+      countIndex: 2,
+    })
   },
 
   closeDialog() {
@@ -104,6 +118,22 @@ Page({
 
   chooseAccent(event: WechatMiniprogram.BaseEvent) {
     this.setData({ accent: event.currentTarget.dataset.accent as string })
+  },
+
+  editSkill(event: WechatMiniprogram.BaseEvent) {
+    const id = Number(event.currentTarget.dataset.id)
+    const skill = this.data.skills.find((entry) => entry.id === id)
+    if (!skill) return
+    this.setData({
+      dialogOpen: true,
+      editingId: skill.id,
+      name: skill.name,
+      description: skill.description,
+      accent: skill.accent,
+      weeklyIndex: Math.max(0, this.data.weeklyOptions.indexOf(skill.weeklyMinutes)),
+      sessionIndex: Math.max(0, this.data.sessionOptions.indexOf(skill.sessionMinutes)),
+      countIndex: Math.max(0, this.data.countOptions.indexOf(skill.sessionsPerWeek)),
+    })
   },
 
   onWeekly(event: WechatMiniprogram.PickerChange) {
@@ -125,7 +155,7 @@ Page({
     }
     this.setData({ saving: true })
     try {
-      const skill = await createSkill({
+      const input = {
         name: this.data.name.trim(),
         description: this.data.description.trim(),
         accent: this.data.accent,
@@ -133,8 +163,13 @@ Page({
         sessionMinutes: this.data.sessionOptions[this.data.sessionIndex],
         sessionsPerWeek: this.data.countOptions[this.data.countIndex],
         active: true,
-      })
-      await generatePlan(skill.id)
+      }
+      if (this.data.editingId) {
+        await updateSkill(this.data.editingId, input)
+      } else {
+        const skill = await createSkill(input)
+        await generatePlan(skill.id)
+      }
       this.setData({ dialogOpen: false })
       await this.loadData()
       wx.showToast({ title: '已生成本周计划', icon: 'success' })
@@ -156,6 +191,46 @@ Page({
       })
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '生成失败', icon: 'none' })
+    }
+  },
+
+  async toggleActive(event: WechatMiniprogram.BaseEvent) {
+    const id = Number(event.currentTarget.dataset.id)
+    const skill = this.data.skills.find((entry) => entry.id === id)
+    if (!skill) return
+    try {
+      await updateSkill(id, {
+        name: skill.name,
+        description: skill.description,
+        accent: skill.accent,
+        weeklyMinutes: skill.weeklyMinutes,
+        sessionMinutes: skill.sessionMinutes,
+        sessionsPerWeek: skill.sessionsPerWeek,
+        active: !skill.active,
+      })
+      await this.loadData()
+    } catch (error) {
+      wx.showToast({ title: (error as { message?: string }).message || '更新失败', icon: 'none' })
+    }
+  },
+
+  async removeSkill(event: WechatMiniprogram.BaseEvent) {
+    const id = Number(event.currentTarget.dataset.id)
+    const skill = this.data.skills.find((entry) => entry.id === id)
+    if (!skill) return
+    const result = await new Promise<WechatMiniprogram.ShowModalSuccessCallbackResult>(
+      (resolve) => wx.showModal({
+        title: '删除技能',
+        content: `删除“${skill.name}”会同时删除相关计划，确定继续吗？`,
+        success: resolve,
+      }),
+    )
+    if (!result.confirm) return
+    try {
+      await deleteSkill(id)
+      await this.loadData()
+    } catch (error) {
+      wx.showToast({ title: (error as { message?: string }).message || '删除失败', icon: 'none' })
     }
   },
 })

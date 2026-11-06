@@ -134,4 +134,52 @@ class StudyControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
+
+    @Test
+    void reflowsMissedItemsToUpcomingDays() throws Exception {
+        String skillResponse = mockMvc.perform(post("/api/study/skills")
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name":"数据分析",
+                                  "description":"每周练习",
+                                  "accent":"#7DD3B0",
+                                  "weeklyMinutes":120,
+                                  "sessionMinutes":25,
+                                  "sessionsPerWeek":2
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long skillId = objectMapper.readTree(skillResponse).get("id").asLong();
+
+        mockMvc.perform(post("/api/study/items")
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "skillId":%d,
+                                  "title":"错过的练习",
+                                  "note":"",
+                                  "plannedDate":"2026-11-05",
+                                  "plannedMinutes":25
+                                }
+                                """.formatted(skillId)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/study/items/reflow").with(user(OWNER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.movedItems").value(1));
+
+        mockMvc.perform(get("/api/study/items")
+                        .with(user(OWNER))
+                        .param("from", "2026-11-06")
+                        .param("to", "2026-11-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].plannedDate").value("2026-11-06"));
+    }
 }

@@ -2,7 +2,7 @@
   <view class="login-hero">
     <view class="login-brand">
       <view class="login-mark"><view></view><view></view><view></view></view>
-      <text>flowboard</text>
+      <text>轻学计划</text>
     </view>
     <text class="login-kicker">多技能 · 轻计划 · 可持续</text>
     <text class="login-headline">让学习节奏\n融进下班生活。</text>

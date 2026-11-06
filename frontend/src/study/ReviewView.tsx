@@ -15,6 +15,9 @@ interface ReviewViewProps {
   skills: StudySkill[]
   sessions: StudySession[]
   items: StudyItem[]
+  onPrevious: () => void
+  onNext: () => void
+  onCurrent: () => void
 }
 
 export function ReviewView({
@@ -23,6 +26,9 @@ export function ReviewView({
   skills,
   sessions,
   items,
+  onPrevious,
+  onNext,
+  onCurrent,
 }: ReviewViewProps) {
   const totalMinutes = sessions.reduce((sum, session) => sum + session.durationMinutes, 0)
   const targetMinutes = skills.reduce((sum, skill) => sum + skill.weeklyMinutes, 0)
@@ -48,6 +54,11 @@ export function ReviewView({
           <span className="study-date">和自己核对一周</span>
           <h1>看见投入，而不只看见结果。</h1>
           <p>学习计划不是考核表。复盘真实时间，给下一周一个更合适的节奏。</p>
+        </div>
+        <div className="study-week-switcher">
+          <button type="button" onClick={onPrevious} aria-label="上一周">←</button>
+          <button type="button" onClick={onCurrent}>本周</button>
+          <button type="button" onClick={onNext} aria-label="下一周">→</button>
         </div>
       </header>
 

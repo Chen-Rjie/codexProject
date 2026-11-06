@@ -55,10 +55,25 @@
   letter-spacing: -1rpx;
 }
 
-.skill-percent {
-  color: #77817c;
-  font-size: 22rpx;
-  font-weight: 700;
+.skill-actions {
+  display: flex;
+  gap: 4rpx;
+}
+
+.skill-actions button {
+  padding: 8rpx 9rpx;
+  color: #78827d;
+  font-size: 16rpx;
+  background: #f2efe8;
+  border-radius: 10rpx;
+}
+
+.paused-label {
+  padding: 4rpx 8rpx;
+  color: #8a7254;
+  font-size: 15rpx;
+  background: #fff2dc;
+  border-radius: 8rpx;
 }
 
 .skill-description {

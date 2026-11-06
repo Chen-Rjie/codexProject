@@ -12,6 +12,9 @@ interface PlanViewProps {
   onAddItem: (date: string) => void
   onComplete: (item: StudyItem) => void
   onSkip: (item: StudyItem) => void
+  onPrevious: () => void
+  onNext: () => void
+  onCurrent: () => void
 }
 
 export function PlanView({
@@ -23,6 +26,9 @@ export function PlanView({
   onAddItem,
   onComplete,
   onSkip,
+  onPrevious,
+  onNext,
+  onCurrent,
 }: PlanViewProps) {
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
   const totalMinutes = items.reduce((sum, item) => sum + item.plannedMinutes, 0)
@@ -36,10 +42,17 @@ export function PlanView({
           <h1>这一周，不追赶，只安排。</h1>
           <p>把时间放进日程里，而不是留给“有空再说”。</p>
         </div>
-        <button className="button button-primary" type="button" onClick={() => onAddItem(today)}>
-          <PlusIcon />
-          添加安排
-        </button>
+        <div className="study-week-actions">
+          <div className="study-week-switcher">
+            <button type="button" onClick={onPrevious} aria-label="上一周">←</button>
+            <button type="button" onClick={onCurrent}>本周</button>
+            <button type="button" onClick={onNext} aria-label="下一周">→</button>
+          </div>
+          <button className="button button-primary" type="button" onClick={() => onAddItem(today)}>
+            <PlusIcon />
+            添加安排
+          </button>
+        </div>
       </header>
 
       <section className="week-summary">

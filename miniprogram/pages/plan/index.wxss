@@ -2,6 +2,31 @@
   margin-top: 28rpx;
 }
 
+.week-switcher {
+  display: flex;
+  gap: 10rpx;
+  padding: 7rpx;
+  margin-top: 20rpx;
+  background: rgba(255, 253, 248, 0.78);
+  border: 1rpx solid #dcd8ce;
+  border-radius: 18rpx;
+}
+
+.week-switcher button {
+  flex: 1;
+  height: 58rpx;
+  color: #637069;
+  font-size: 20rpx;
+  background: transparent;
+  border-radius: 12rpx;
+}
+
+.week-switcher button:nth-child(2) {
+  color: #24372e;
+  font-weight: 700;
+  background: #dbff73;
+}
+
 .week-summary {
   display: flex;
   gap: 28rpx;

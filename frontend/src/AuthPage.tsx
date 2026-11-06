@@ -62,7 +62,7 @@ export function AuthPage({ bootError, onAuthenticated }: AuthPageProps) {
             <span />
             <span />
           </span>
-          <span>flowboard</span>
+          <span>轻学计划</span>
         </div>
 
         <div className="auth-story-copy">
@@ -98,7 +98,7 @@ export function AuthPage({ bootError, onAuthenticated }: AuthPageProps) {
         <div className="auth-card">
           <div className="auth-card-heading">
             <span className="eyebrow">{mode === 'login' ? '欢迎回来' : '创建工作区'}</span>
-            <h2>{mode === 'login' ? '登录 Flowboard' : '建立学习账号'}</h2>
+            <h2>{mode === 'login' ? '登录轻学计划' : '建立学习账号'}</h2>
             <p>
               {mode === 'login'
                 ? '继续处理今天最重要的任务。'

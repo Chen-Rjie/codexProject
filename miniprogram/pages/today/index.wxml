@@ -5,7 +5,10 @@
       <text class="page-title">{{user.displayName}}，今晚留一点时间给自己。</text>
       <text class="page-subtitle">完成最重要的一个小节就够了，稳定比冲刺更有价值。</text>
     </view>
-    <button class="logout-link" bindtap="logout">退出</button>
+    <view class="today-heading-actions">
+      <button class="bind-link" bindtap="bindWeChat">绑定微信</button>
+      <button class="logout-link" bindtap="logout">退出</button>
+    </view>
   </view>
 
   <view wx:if="{{skills.length === 0}}" class="empty-state first-run">

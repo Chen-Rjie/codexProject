@@ -1,18 +1,29 @@
 import type { AuthUser } from '../../app'
 import {
   completeItem,
+  bindWeChat as bindWeChatIdentity,
   ensureLogin,
   getStoredUser,
   listItems,
   listSessions,
   listSkills,
   logout,
+  reflowItems,
   skipItem,
   type StudyItem,
   type StudySession,
   type StudySkill,
 } from '../../utils/api'
 import { addDays, localDate, monthDay, weekStart, weekday } from '../../utils/date'
+
+const TIMER_STORAGE_KEY = 'flowboard_timer_v1'
+
+interface StoredTimer {
+  item: StudyItem
+  seconds: number
+  running: boolean
+  startedAt: number | null
+}
 
 function timerLabel(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
@@ -40,6 +51,7 @@ Page({
     streak: 0,
     timerItem: null as StudyItem | null,
     timerSeconds: 0,
+    timerStartedAt: 0,
     timerLabel: '00:00',
     timerRunning: false,
   },
@@ -55,7 +67,12 @@ Page({
 
   onShow() {
     if (!ensureLogin()) return
+    this.restoreTimer()
     void this.loadData()
+  },
+
+  onHide() {
+    this.persistTimer()
   },
 
   onPullDownRefresh() {
@@ -63,7 +80,39 @@ Page({
   },
 
   onUnload() {
+    this.persistTimer()
     if (this.timerHandle) clearInterval(this.timerHandle)
+  },
+
+  restoreTimer() {
+    const stored = wx.getStorageSync<StoredTimer>(TIMER_STORAGE_KEY)
+    if (!stored?.item?.id) return
+    let seconds = stored.seconds || 0
+    if (stored.running && stored.startedAt) {
+      seconds = Math.max(seconds, Math.floor((Date.now() - stored.startedAt) / 1000))
+    }
+    this.setData({
+      timerItem: stored.item,
+      timerSeconds: seconds,
+      timerStartedAt: stored.startedAt || 0,
+      timerRunning: stored.running,
+      timerLabel: timerLabel(seconds),
+    })
+    if (stored.running) this.startInterval()
+  },
+
+  persistTimer() {
+    if (!this.data.timerItem) {
+      wx.removeStorageSync(TIMER_STORAGE_KEY)
+      return
+    }
+    const stored: StoredTimer = {
+      item: this.data.timerItem,
+      seconds: this.data.timerSeconds,
+      running: this.data.timerRunning,
+      startedAt: this.data.timerStartedAt || null,
+    }
+    wx.setStorageSync(TIMER_STORAGE_KEY, stored)
   },
 
   async loadData() {
@@ -71,6 +120,7 @@ Page({
     try {
       const today = localDate()
       const start = weekStart()
+      await reflowItems()
       const [skills, items, sessions] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
@@ -133,15 +183,19 @@ Page({
     this.setData({
       timerItem: item,
       timerSeconds: 0,
+      timerStartedAt: Date.now(),
       timerLabel: '00:00',
       timerRunning: true,
     })
+    this.persistTimer()
   },
 
   startInterval() {
     if (this.timerHandle) clearInterval(this.timerHandle)
     this.timerHandle = setInterval(() => {
-      const seconds = this.data.timerSeconds + 1
+      const seconds = this.data.timerStartedAt
+        ? Math.max(0, Math.floor((Date.now() - this.data.timerStartedAt) / 1000))
+        : this.data.timerSeconds
       this.setData({
         timerSeconds: seconds,
         timerLabel: timerLabel(seconds),
@@ -153,10 +207,13 @@ Page({
     if (this.data.timerRunning) {
       clearInterval(this.timerHandle)
       this.timerHandle = 0
-      this.setData({ timerRunning: false })
+      this.setData({ timerRunning: false, timerStartedAt: 0 })
+      this.persistTimer()
     } else {
+      this.setData({ timerStartedAt: Date.now() - this.data.timerSeconds * 1000 })
       this.startInterval()
       this.setData({ timerRunning: true })
+      this.persistTimer()
     }
   },
 
@@ -166,7 +223,14 @@ Page({
     await this.recordDone(this.data.timerItem, minutes)
     clearInterval(this.timerHandle)
     this.timerHandle = 0
-    this.setData({ timerItem: null, timerSeconds: 0, timerRunning: false, timerLabel: '00:00' })
+    wx.removeStorageSync(TIMER_STORAGE_KEY)
+    this.setData({
+      timerItem: null,
+      timerSeconds: 0,
+      timerStartedAt: 0,
+      timerRunning: false,
+      timerLabel: '00:00',
+    })
   },
 
   async quickComplete(event: WechatMiniprogram.BaseEvent) {
@@ -208,6 +272,18 @@ Page({
 
   async logout() {
     await logout()
+  },
+
+  async bindWeChat() {
+    try {
+      await bindWeChatIdentity()
+      wx.showToast({ title: '微信已绑定', icon: 'success' })
+    } catch (error) {
+      wx.showToast({
+        title: (error as { message?: string }).message || '绑定失败',
+        icon: 'none',
+      })
+    }
   },
 })
 

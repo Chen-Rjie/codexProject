@@ -19,6 +19,21 @@
   border-radius: 14rpx;
 }
 
+.today-heading-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.bind-link {
+  padding: 8rpx 14rpx;
+  color: #4e664d;
+  font-size: 18rpx;
+  background: #eff3dd;
+  border-radius: 14rpx;
+}
+
 .first-run {
   margin-top: 80rpx;
 }

@@ -44,12 +44,13 @@ class TokenAuthControllerTest {
 
     @Test
     void logsInWithPasswordAndUsesBearerToken() throws Exception {
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/auth/token/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"username":"mobile","displayName":"移动端用户","password":"Study1234"}
                                 """))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
 
         String response = mockMvc.perform(post("/api/auth/token/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -110,5 +111,46 @@ class TokenAuthControllerTest {
                                 "refreshToken", tokens.get("refreshToken").asText()
                         ))))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void bindsWeChatIdentityToExistingAccount() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"binder","displayName":"绑定用户","password":"Study1234"}
+                                """))
+                .andExpect(status().isCreated());
+
+        String loginResponse = mockMvc.perform(post("/api/auth/token/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"binder","password":"Study1234"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String accessToken = objectMapper.readTree(loginResponse).get("accessToken").asText();
+
+        when(weChatClient.exchangeCode("bind-code"))
+                .thenReturn(new WeChatMiniappClient.WeChatSession("bind-openid", "bind-unionid"));
+
+        mockMvc.perform(post("/api/auth/wechat/bind")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"bind-code"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("binder"));
+
+        mockMvc.perform(post("/api/auth/wechat/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"bind-code"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.username").value("binder"));
     }
 }

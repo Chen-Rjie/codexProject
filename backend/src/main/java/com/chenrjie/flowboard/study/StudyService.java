@@ -170,6 +170,36 @@ public class StudyService {
         items.delete(ownedItem(ownerId, id));
     }
 
+    public int reflowMissedItems(Long ownerId) {
+        LocalDate today = LocalDate.now();
+        List<StudyItem> overdue = items
+                .findByOwnerIdAndStatusAndPlannedDateBeforeOrderByPlannedDateAscCreatedAtAsc(
+                        ownerId,
+                        StudyItemStatus.PLANNED,
+                        today
+                );
+        if (overdue.isEmpty()) return 0;
+
+        List<StudyItem> upcoming = items.findByOwnerIdAndPlannedDateBetweenOrderByPlannedDateAscCreatedAtAsc(
+                ownerId,
+                today,
+                today.plusDays(14)
+        );
+        for (StudyItem item : overdue) {
+            LocalDate target = today;
+            while (itemsOnDate(upcoming, target) >= 2 && target.isBefore(today.plusDays(14))) {
+                target = target.plusDays(1);
+            }
+            item.setPlannedDate(target);
+            item.setNote(item.getNote().isBlank()
+                    ? "从错过计划自动顺延"
+                    : item.getNote() + " · 从错过计划自动顺延");
+            StudyItem saved = items.save(item);
+            upcoming.add(saved);
+        }
+        return overdue.size();
+    }
+
     @Transactional(readOnly = true)
     public List<SessionResponse> findSessions(Long ownerId, LocalDate from, LocalDate to) {
         validateRange(from, to);
@@ -207,5 +237,9 @@ public class StudyService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private long itemsOnDate(List<StudyItem> scheduled, LocalDate date) {
+        return scheduled.stream().filter(item -> item.getPlannedDate().equals(date)).count();
     }
 }
