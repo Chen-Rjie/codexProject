@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import javax.net.ssl.SSLHandshakeException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -122,6 +123,13 @@ public class ApiExceptionHandler {
         body.put("exceptionType", exception.getClass().getSimpleName());
         if (exception.getCause() != null) {
             body.put("causeType", exception.getCause().getClass().getSimpleName());
+        }
+        Throwable rootCause = exception;
+        while (rootCause.getCause() != null) {
+            rootCause = rootCause.getCause();
+        }
+        if (rootCause instanceof SSLHandshakeException) {
+            body.put("sslHandshakeError", rootCause.getMessage());
         }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
