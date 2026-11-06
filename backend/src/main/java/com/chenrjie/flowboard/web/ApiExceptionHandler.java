@@ -115,8 +115,15 @@ public class ApiExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception exception) {
         log.error("Unhandled API exception", exception);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(errorBody(HttpStatus.INTERNAL_SERVER_ERROR, "服务器处理请求时发生错误"));
+        Map<String, Object> body = errorBody(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "服务器处理请求时发生错误"
+        );
+        body.put("exceptionType", exception.getClass().getSimpleName());
+        if (exception.getCause() != null) {
+            body.put("causeType", exception.getCause().getClass().getSimpleName());
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     private Map<String, Object> errorBody(HttpStatus status, String message) {
