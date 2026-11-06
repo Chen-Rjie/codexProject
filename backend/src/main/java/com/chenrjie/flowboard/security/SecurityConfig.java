@@ -65,7 +65,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
-                                "/api/health",
+                                "/api/health/**",
                                 "/api/auth/login",
                                 "/api/auth/register",
                                 "/api/auth/wechat/login",
