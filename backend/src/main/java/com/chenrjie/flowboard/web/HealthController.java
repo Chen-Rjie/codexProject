@@ -1,7 +1,10 @@
 package com.chenrjie.flowboard.web;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,9 +20,11 @@ import java.util.Map;
 public class HealthController {
 
     private final DataSource dataSource;
+    private final StringRedisTemplate redis;
 
-    public HealthController(DataSource dataSource) {
+    public HealthController(DataSource dataSource, ObjectProvider<StringRedisTemplate> redisProvider) {
         this.dataSource = dataSource;
+        this.redis = redisProvider.getIfAvailable();
     }
 
     @GetMapping
@@ -47,6 +52,36 @@ public class HealthController {
                     .body(Map.of(
                             "status", "DOWN",
                             "component", "mysql",
+                            "timestamp", Instant.now()
+                    ));
+        }
+    }
+
+    @GetMapping("/redis")
+    public ResponseEntity<Map<String, Object>> redisHealth() {
+        if (redis == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of(
+                            "status", "DOWN",
+                            "component", "redis",
+                            "timestamp", Instant.now()
+                    ));
+        }
+        try (RedisConnection connection = redis.getConnectionFactory().getConnection()) {
+            String response = connection.ping();
+            boolean valid = "PONG".equalsIgnoreCase(response);
+            Map<String, Object> body = Map.of(
+                    "status", valid ? "UP" : "DOWN",
+                    "component", "redis",
+                    "timestamp", Instant.now()
+            );
+            return ResponseEntity.status(valid ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(body);
+        } catch (RuntimeException exception) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of(
+                            "status", "DOWN",
+                            "component", "redis",
                             "timestamp", Instant.now()
                     ));
         }
