@@ -1,18 +1,18 @@
 <view class="page" wx:if="{{!loading}}">
   <text class="eyebrow">多线学习，也要留出呼吸</text>
   <text class="page-title">你的技能组合。</text>
-  <text class="page-subtitle">同时学习不等于同时推进。给每项技能一个真实可承受的每周预算。</text>
+  <text class="page-subtitle">同时学几项，不等于几项一起推进。先定下每次学多久、每周学几次，预算会自动算好。</text>
 
   <button class="primary-button add-skill" bindtap="openDialog">+ 添加技能</button>
 
   <view wx:if="{{skills.length}}" class="summary-strip">
     <view><text>技能数量</text><text class="summary-value">{{skills.length}}</text></view>
-    <view><text>本周计划</text><text class="summary-value">{{totalTarget}} 分钟</text></view>
-    <view><text>本周投入</text><text class="summary-value">{{totalDone}} 分钟</text></view>
+    <view><text>每周目标</text><text class="summary-value">{{totalTarget}} 分钟</text></view>
+    <view><text>本周已投入</text><text class="summary-value">{{totalDone}} 分钟</text></view>
   </view>
 
   <view wx:if="{{skills.length === 0}}" class="empty-state skill-empty">
-    <view class="empty-mark">02</view>
+    <view class="empty-mark">+</view>
     <text class="empty-title">还没有正在学习的技能</text>
     <text class="empty-copy">从一个最想提升、也最愿意在下班后投入的项目开始。</text>
     <button class="primary-button accent-button empty-action" bindtap="openDialog">添加技能</button>
@@ -23,7 +23,7 @@
       <view class="skill-top">
         <view class="skill-heading">
           <view class="skill-dot" style="background: {{item.accent}};"></view>
-          <text>{{item.name}}</text>
+          <text class="skill-name">{{item.name}}</text>
           <text wx:if="{{!item.active}}" class="paused-label">已暂停</text>
         </view>
         <view class="skill-actions">
@@ -32,15 +32,15 @@
           <button data-id="{{item.id}}" bindtap="removeSkill">删除</button>
         </view>
       </view>
-      <text class="skill-description">{{item.description || '还没有填写目标，先保持稳定投入。'}}</text>
+      <text class="skill-description">{{item.description || '还没写下目标，先按这个节奏开始就好。'}}</text>
       <view class="progress-line"><view style="width: {{item.percent}}%; background: {{item.accent}};"></view></view>
       <view class="skill-meta">
-        <text>{{item.minutes}} / {{item.weeklyMinutes}} 分钟</text>
+        <text>本周 {{item.minutes}} / {{item.budget}} 分钟</text>
         <text>{{item.sessionsPerWeek}} 次/周</text>
-        <text>{{item.plannedCount}} 项待完成</text>
+        <text>本周 {{item.plannedCount}} 项待完成</text>
       </view>
       <button class="generate-button" data-id="{{item.id}}" bindtap="generate">
-        生成本周计划 <text>→</text>
+        {{item.weekItemCount > 0 ? '查看本周计划' : '生成本周计划'}} <text>→</text>
       </button>
     </view>
   </view>
@@ -49,21 +49,15 @@
 
 <view wx:if="{{dialogOpen}}" class="dialog-mask" bindtap="closeDialog">
   <view class="dialog" catchtap="noop">
-    <text class="dialog-title">{{editingId ? '调整学习节奏' : '添加一项想坚持的技能'}}</text>
+    <text class="dialog-title">{{editingId ? '调整学习节奏' : '添加一项技能'}}</text>
     <label class="field">
       <text class="field-label">技能名称</text>
-      <input class="field-input" placeholder="例如：英语口语、Java、产品设计" value="{{name}}" bindinput="onName" />
+      <input class="field-input" placeholder="例如：英语口语、Java、产品设计" value="{{name}}" cursor-spacing="30" bindinput="onName" />
     </label>
     <label class="field">
       <text class="field-label">一句话目标</text>
-      <textarea class="field-area" placeholder="希望在什么场景中用上这项技能？" value="{{description}}" bindinput="onDescription" />
+      <textarea class="field-area" placeholder="例如：能和同事进行 10 分钟英文对话" value="{{description}}" cursor-spacing="30" show-confirm-bar="{{false}}" bindinput="onDescription" />
     </label>
-    <view class="field">
-      <text class="field-label">每周投入</text>
-      <picker range="{{weeklyLabels}}" value="{{weeklyIndex}}" bindchange="onWeekly">
-        <view class="field-picker">{{weeklyLabels[weeklyIndex]}}</view>
-      </picker>
-    </view>
     <view class="field">
       <text class="field-label">单次时长</text>
       <picker range="{{sessionOptions}}" value="{{sessionIndex}}" bindchange="onSession">
@@ -71,10 +65,15 @@
       </picker>
     </view>
     <view class="field">
-      <text class="field-label">每周安排次数</text>
+      <text class="field-label">每周次数</text>
       <picker range="{{countOptions}}" value="{{countIndex}}" bindchange="onCount">
         <view class="field-picker">{{countOptions[countIndex]}} 次</view>
       </picker>
+    </view>
+    <view class="field">
+      <text class="field-label">每周投入（自动计算）</text>
+      <view class="budget-summary">每周 {{computedBudget}} 分钟 = {{sessionOptions[sessionIndex]}} 分钟 × {{countOptions[countIndex]}} 次</view>
+      <text wx:if="{{!editingId}}" class="budget-hint">添加后会按这个次数，在本周剩余的日子里自动排好安排，之后可以在计划页调整。</text>
     </view>
     <view class="field">
       <text class="field-label">标记颜色</text>
@@ -88,4 +87,3 @@
     </view>
   </view>
 </view>
-

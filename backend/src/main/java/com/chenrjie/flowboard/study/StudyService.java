@@ -15,8 +15,10 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -45,7 +47,7 @@ public class StudyService {
 
     public SkillResponse createSkill(Long ownerId, SkillRequest request) {
         String name = request.name().trim();
-        if (skills.existsByOwnerIdAndNameIgnoreCase(ownerId, name)) {
+        if (skills.existsByOwnerIdAndArchivedFalseAndNameIgnoreCase(ownerId, name)) {
             throw new StudyConflictException("已经存在同名技能");
         }
 
@@ -59,7 +61,7 @@ public class StudyService {
         StudySkill skill = ownedSkill(ownerId, id);
         String name = request.name().trim();
         if (!skill.getName().equalsIgnoreCase(name)
-                && skills.existsByOwnerIdAndNameIgnoreCase(ownerId, name)) {
+                && skills.existsByOwnerIdAndArchivedFalseAndNameIgnoreCase(ownerId, name)) {
             throw new StudyConflictException("已经存在同名技能");
         }
         applySkill(skill, request, name);
@@ -67,7 +69,10 @@ public class StudyService {
     }
 
     public void deleteSkill(Long ownerId, Long id) {
-        skills.delete(ownedSkill(ownerId, id));
+        StudySkill skill = ownedSkill(ownerId, id);
+        skill.setArchived(true);
+        skill.setActive(false);
+        skills.save(skill);
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +103,9 @@ public class StudyService {
         LocalDate weekStart = requestedWeekStart.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate weekEnd = weekStart.plusDays(6);
         LocalDate today = LocalDate.now();
+        if (weekEnd.isBefore(today)) {
+            return List.of();
+        }
         LocalDate currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate scheduleStart = weekStart.equals(currentWeekStart) && today.isAfter(weekStart)
                 ? today
@@ -108,25 +116,41 @@ public class StudyService {
                 weekStart,
                 weekEnd
         );
+        Set<LocalDate> occupied = new HashSet<>();
+        for (StudyItem item : existing) {
+            occupied.add(item.getPlannedDate());
+        }
 
-        List<StudyItem> created = new ArrayList<>();
         int availableDays = (int) ChronoUnit.DAYS.between(scheduleStart, weekEnd) + 1;
-        int planCount = Math.min(skill.getSessionsPerWeek(), availableDays);
-        for (int index = 0; index < planCount; index++) {
-            int dayOffset = planCount == 1
-                    ? 0
-                    : Math.round(index * (availableDays - 1f) / (planCount - 1));
-            LocalDate plannedDate = scheduleStart.plusDays(dayOffset);
-            boolean alreadyPlanned = existing.stream()
-                    .anyMatch(item -> item.getPlannedDate().equals(plannedDate));
-            if (alreadyPlanned) {
-                continue;
+        int targetCount = Math.min(skill.getSessionsPerWeek(), availableDays);
+        int needed = Math.min(targetCount - existing.size(), availableDays - occupied.size());
+        if (needed <= 0) {
+            return List.of();
+        }
+
+        List<LocalDate> freeDays = new ArrayList<>();
+        for (int offset = 0; offset < availableDays; offset++) {
+            LocalDate date = scheduleStart.plusDays(offset);
+            if (!occupied.contains(date)) {
+                freeDays.add(date);
             }
+        }
+        if (freeDays.isEmpty()) {
+            return List.of();
+        }
+
+        int slots = Math.min(needed, freeDays.size());
+        List<StudyItem> created = new ArrayList<>();
+        for (int index = 0; index < slots; index++) {
+            int position = slots == 1
+                    ? freeDays.size() / 2
+                    : Math.round(index * (freeDays.size() - 1f) / (slots - 1));
+            LocalDate plannedDate = freeDays.get(position);
 
             StudyItem item = new StudyItem();
             item.setOwnerId(ownerId);
             item.setSkillId(skillId);
-            item.setTitle(skill.getName() + " · 专注学习 " + (index + 1));
+            item.setTitle(skill.getName() + " · 专注学习 " + (existing.size() + index + 1));
             item.setNote("按你的每周时间预算自动安排");
             item.setPlannedDate(plannedDate);
             item.setPlannedMinutes(skill.getSessionMinutes());
@@ -220,7 +244,7 @@ public class StudyService {
     }
 
     private StudySkill ownedSkill(Long ownerId, Long id) {
-        return skills.findByIdAndOwnerId(id, ownerId)
+        return skills.findByIdAndOwnerIdAndArchivedFalse(id, ownerId)
                 .orElseThrow(() -> new StudyNotFoundException("未找到技能：" + id));
     }
 

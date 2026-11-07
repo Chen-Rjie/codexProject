@@ -17,7 +17,7 @@ import java.time.Instant;
         name = "study_skills",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_study_skills_owner_name",
-                columnNames = {"owner_id", "name"}
+                columnNames = {"owner_id", "name", "archived"}
         )
 )
 public class StudySkill {
@@ -49,6 +49,9 @@ public class StudySkill {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(nullable = false)
+    private boolean archived = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -134,6 +137,14 @@ public class StudySkill {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
     }
 
     public Instant getCreatedAt() {

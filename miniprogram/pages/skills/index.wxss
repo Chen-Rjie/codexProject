@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: 8rpx;
   color: #848d88;
-  font-size: 17rpx;
+  font-size: 20rpx;
 }
 
 .summary-value {
@@ -42,50 +42,69 @@
 
 .skill-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 18rpx;
+  align-items: stretch;
 }
 
 .skill-heading {
   display: flex;
   gap: 12rpx;
   align-items: center;
-  font-size: 35rpx;
+  min-width: 0;
+  font-size: 34rpx;
   font-weight: 750;
   letter-spacing: -1rpx;
 }
 
+.skill-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .skill-actions {
   display: flex;
-  gap: 4rpx;
+  flex-shrink: 0;
+  gap: 10rpx;
 }
 
 .skill-actions button {
-  padding: 8rpx 9rpx;
-  color: #78827d;
-  font-size: 16rpx;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 64rpx;
+  padding: 0 8rpx;
+  color: #5f6a65;
+  font-size: 22rpx;
+  line-height: 1.2;
+  white-space: nowrap;
   background: #f2efe8;
-  border-radius: 10rpx;
+  border-radius: 12rpx;
 }
 
 .paused-label {
-  padding: 4rpx 8rpx;
+  flex-shrink: 0;
+  padding: 4rpx 10rpx;
   color: #8a7254;
-  font-size: 15rpx;
+  font-size: 19rpx;
   background: #fff2dc;
   border-radius: 8rpx;
 }
 
 .skill-description {
   display: block;
-  margin-top: 12rpx;
+  margin-top: 14rpx;
   color: #7d8681;
-  font-size: 20rpx;
+  font-size: 23rpx;
   line-height: 1.65;
 }
 
 .progress-line {
-  height: 9rpx;
+  height: 10rpx;
   margin-top: 24rpx;
   overflow: hidden;
   background: #e9e6de;
@@ -103,21 +122,48 @@
   gap: 12rpx 24rpx;
   margin-top: 18rpx;
   color: #8b938f;
-  font-size: 17rpx;
+  font-size: 21rpx;
 }
 
 .generate-button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 70rpx;
-  padding: 0 20rpx;
+  width: 100% !important;
+  height: 84rpx;
+  margin: 22rpx 0 0 !important;
+  padding: 0 24rpx;
   margin-top: 22rpx;
   color: #31433a;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 700;
   background: #f2efe8;
   border-radius: 17rpx;
+}
+
+.generate-button text {
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.budget-summary {
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 0 24rpx;
+  color: #4e664d;
+  font-size: 24rpx;
+  background: #eff3dd;
+  border: 1rpx solid #d8e0bd;
+  border-radius: 18rpx;
+}
+
+.budget-hint {
+  display: block;
+  margin-top: 12rpx;
+  color: #9aa29e;
+  font-size: 20rpx;
+  line-height: 1.5;
 }
 
 .accent-list {
@@ -126,8 +172,8 @@
 }
 
 .accent-list button {
-  width: 54rpx;
-  height: 54rpx;
+  width: 64rpx;
+  height: 64rpx;
   border: 5rpx solid #fffdf8;
   border-radius: 50%;
   box-shadow: 0 0 0 2rpx #d4d0c7;

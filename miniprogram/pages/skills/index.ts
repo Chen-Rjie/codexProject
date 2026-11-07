@@ -6,7 +6,7 @@ import {
   listItems,
   listSessions,
   listSkills,
-  reflowItems,
+  skillBudget,
   updateSkill,
   type StudyItem,
   type StudySession,
@@ -14,10 +14,14 @@ import {
 } from '../../utils/api'
 import { addDays, weekStart } from '../../utils/date'
 
+const MIN_WEEKLY_MINUTES = 30
+
 interface SkillView extends StudySkill {
   minutes: number
   percent: number
   plannedCount: number
+  weekItemCount: number
+  budget: number
 }
 
 Page({
@@ -33,13 +37,11 @@ Page({
     description: '',
     accent: '#DBFF73',
     accentOptions: ['#DBFF73', '#8EA7FF', '#FFAB91', '#7DD3B0', '#E9C46A'],
-    weeklyOptions: [60, 120, 180, 300, 420],
-    weeklyLabels: ['1 小时', '2 小时', '3 小时', '5 小时', '7 小时'],
-    weeklyIndex: 2,
     sessionOptions: [15, 25, 30, 45, 60],
     sessionIndex: 2,
     countOptions: [1, 2, 3, 4, 5, 6, 7],
     countIndex: 2,
+    computedBudget: 90,
   },
 
   onShow() {
@@ -55,7 +57,6 @@ Page({
     this.setData({ loading: true })
     try {
       const start = weekStart()
-      await reflowItems()
       const [skills, items, sessions] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
@@ -64,29 +65,36 @@ Page({
       const weekSessions = sessions.filter(
         (session) => session.studiedOn >= start && session.studiedOn <= addDays(start, 6),
       )
-      const views = skills.map((skill) => {
+      const visibleSkills = skills.filter((skill) => !skill.archived)
+      const views = visibleSkills.map((skill) => {
+        const skillItems = items.filter((item) => item.skillId === skill.id)
+        const budget = Math.max(1, skillBudget(skill))
         const minutes = weekSessions
           .filter((session) => session.skillId === skill.id)
           .reduce((sum, session) => sum + session.durationMinutes, 0)
         return {
           ...skill,
           minutes,
-          percent: Math.min(100, Math.round((minutes / skill.weeklyMinutes) * 100)),
-          plannedCount: items.filter(
-            (item) => item.skillId === skill.id && item.status === 'PLANNED',
-          ).length,
+          budget,
+          percent: Math.min(100, Math.round((minutes / budget) * 100)),
+          plannedCount: skillItems.filter((item) => item.status === 'PLANNED').length,
+          weekItemCount: skillItems.length,
         }
       })
       this.setData({
         loading: false,
         skills: views,
-        totalTarget: skills.reduce((sum, skill) => sum + skill.weeklyMinutes, 0),
+        totalTarget: visibleSkills.reduce((sum, skill) => sum + Math.max(1, skillBudget(skill)), 0),
         totalDone: weekSessions.reduce((sum, session) => sum + session.durationMinutes, 0),
       })
     } catch (error) {
       this.setData({ loading: false })
       wx.showToast({ title: (error as { message?: string }).message || '加载失败', icon: 'none' })
     }
+  },
+
+  derivedBudget(sessionIndex: number, countIndex: number): number {
+    return this.data.sessionOptions[sessionIndex] * this.data.countOptions[countIndex]
   },
 
   openDialog() {
@@ -96,9 +104,9 @@ Page({
       name: '',
       description: '',
       accent: '#DBFF73',
-      weeklyIndex: 2,
       sessionIndex: 2,
       countIndex: 2,
+      computedBudget: this.derivedBudget(2, 2),
     })
   },
 
@@ -124,28 +132,34 @@ Page({
     const id = Number(event.currentTarget.dataset.id)
     const skill = this.data.skills.find((entry) => entry.id === id)
     if (!skill) return
+    const sessionIndex = Math.max(0, this.data.sessionOptions.indexOf(skill.sessionMinutes))
+    const countIndex = Math.max(0, this.data.countOptions.indexOf(skill.sessionsPerWeek))
     this.setData({
       dialogOpen: true,
       editingId: skill.id,
       name: skill.name,
       description: skill.description,
       accent: skill.accent,
-      weeklyIndex: Math.max(0, this.data.weeklyOptions.indexOf(skill.weeklyMinutes)),
-      sessionIndex: Math.max(0, this.data.sessionOptions.indexOf(skill.sessionMinutes)),
-      countIndex: Math.max(0, this.data.countOptions.indexOf(skill.sessionsPerWeek)),
+      sessionIndex,
+      countIndex,
+      computedBudget: skill.budget,
     })
   },
 
-  onWeekly(event: WechatMiniprogram.PickerChange) {
-    this.setData({ weeklyIndex: Number(event.detail.value) })
-  },
-
   onSession(event: WechatMiniprogram.PickerChange) {
-    this.setData({ sessionIndex: Number(event.detail.value) })
+    const sessionIndex = Number(event.detail.value)
+    this.setData({
+      sessionIndex,
+      computedBudget: this.derivedBudget(sessionIndex, this.data.countIndex),
+    })
   },
 
   onCount(event: WechatMiniprogram.PickerChange) {
-    this.setData({ countIndex: Number(event.detail.value) })
+    const countIndex = Number(event.detail.value)
+    this.setData({
+      countIndex,
+      computedBudget: this.derivedBudget(this.data.sessionIndex, countIndex),
+    })
   },
 
   async saveSkill() {
@@ -153,13 +167,15 @@ Page({
       if (!this.data.name.trim()) wx.showToast({ title: '请输入技能名称', icon: 'none' })
       return
     }
+    const isNew = !this.data.editingId
+    let createdCount = 0
     this.setData({ saving: true })
     try {
       const input = {
         name: this.data.name.trim(),
         description: this.data.description.trim(),
         accent: this.data.accent,
-        weeklyMinutes: this.data.weeklyOptions[this.data.weeklyIndex],
+        weeklyMinutes: Math.max(MIN_WEEKLY_MINUTES, this.data.computedBudget),
         sessionMinutes: this.data.sessionOptions[this.data.sessionIndex],
         sessionsPerWeek: this.data.countOptions[this.data.countIndex],
         active: true,
@@ -168,11 +184,17 @@ Page({
         await updateSkill(this.data.editingId, input)
       } else {
         const skill = await createSkill(input)
-        await generatePlan(skill.id)
+        const created = await generatePlan(skill.id)
+        createdCount = created.length
       }
       this.setData({ dialogOpen: false })
       await this.loadData()
-      wx.showToast({ title: '已生成本周计划', icon: 'success' })
+      wx.showToast({
+        title: isNew
+          ? (createdCount > 0 ? `已创建技能，排入 ${createdCount} 项安排` : '已创建技能')
+          : '已保存修改',
+        icon: 'success',
+      })
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '保存失败', icon: 'none' })
     } finally {
@@ -182,13 +204,20 @@ Page({
 
   async generate(event: WechatMiniprogram.BaseEvent) {
     const id = Number(event.currentTarget.dataset.id)
+    const skill = this.data.skills.find((entry) => entry.id === id)
+    if (!skill) return
+    if (skill.weekItemCount > 0) {
+      wx.switchTab({ url: '/pages/plan/index' })
+      return
+    }
     try {
       const created = await generatePlan(id)
       await this.loadData()
-      wx.showToast({
-        title: created.length ? '本周计划已生成' : '本周已有计划',
-        icon: 'none',
-      })
+      if (created.length > 0) {
+        wx.showToast({ title: `已生成 ${created.length} 项安排`, icon: 'none' })
+      } else {
+        wx.switchTab({ url: '/pages/plan/index' })
+      }
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '生成失败', icon: 'none' })
     }
@@ -203,7 +232,7 @@ Page({
         name: skill.name,
         description: skill.description,
         accent: skill.accent,
-        weeklyMinutes: skill.weeklyMinutes,
+        weeklyMinutes: Math.max(MIN_WEEKLY_MINUTES, skill.budget),
         sessionMinutes: skill.sessionMinutes,
         sessionsPerWeek: skill.sessionsPerWeek,
         active: !skill.active,
@@ -219,9 +248,10 @@ Page({
     const skill = this.data.skills.find((entry) => entry.id === id)
     if (!skill) return
     const result = await new Promise<WechatMiniprogram.ShowModalSuccessCallbackResult>(
-      (resolve) => wx.showModal({
-        title: '删除技能',
-        content: `删除“${skill.name}”会同时删除相关计划，确定继续吗？`,
+      (resolve) =>       wx.showModal({
+        title: '移除技能',
+        content: `“${skill.name}”会从技能列表移除，已经排好的计划和学习记录都会保留。`,
+        confirmText: '移除',
         success: resolve,
       }),
     )
@@ -229,9 +259,9 @@ Page({
     try {
       await deleteSkill(id)
       await this.loadData()
+      wx.showToast({ title: '已从列表移除', icon: 'none' })
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '删除失败', icon: 'none' })
     }
   },
 })
-

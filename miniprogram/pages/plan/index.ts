@@ -1,15 +1,17 @@
 import {
-  completeItem,
+  completeStudyItem,
   createItem,
+  deleteStudyItem,
   ensureLogin,
+  generatePlan,
   listItems,
   listSkills,
-  reflowItems,
   skipItem,
   type StudyItem,
   type StudySkill,
 } from '../../utils/api'
 import { addDays, localDate, monthDay, weekStart, weekday } from '../../utils/date'
+import { getSelectedWeek, setSelectedWeek } from '../../utils/weekState'
 
 interface PlanItem extends StudyItem {
   skillName: string
@@ -27,11 +29,17 @@ interface PlanDay {
 Page({
   data: {
     loading: true,
-    selectedWeekStart: weekStart(),
+    selectedWeekStart: getSelectedWeek(),
     weekLabel: '',
+    isCurrentWeek: true,
+    today: localDate(),
     scrollTarget: '',
     days: [] as PlanDay[],
+    dateOptions: [] as string[],
+    dateLabels: [] as string[],
+    dateIndex: 0,
     skills: [] as StudySkill[],
+    selectableSkills: [] as StudySkill[],
     itemCount: 0,
     plannedMinutes: 0,
     doneCount: 0,
@@ -47,6 +55,7 @@ Page({
 
   onShow() {
     if (!ensureLogin()) return
+    this.setData({ selectedWeekStart: getSelectedWeek() })
     void this.loadData()
   },
 
@@ -58,7 +67,6 @@ Page({
     this.setData({ loading: true })
     try {
       const start = this.data.selectedWeekStart
-      await reflowItems()
       const [skills, items] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
@@ -74,23 +82,36 @@ Page({
             .filter((item) => item.plannedDate === date)
             .map((item) => {
               const skill = skills.find((entry) => entry.id === item.skillId)
+              const skillName = skill?.name || '学习'
+              const prefix = `${skillName} · `
+              const title = item.title.startsWith(prefix) ? item.title.slice(prefix.length) : item.title
               return {
                 ...item,
-                skillName: skill?.name || '学习',
+                title,
+                skillName,
                 accent: skill?.accent || '#DBFF73',
               }
             }),
         }
       })
+      const isCurrentWeek = start === weekStart()
+      const scrollTarget = isCurrentWeek ? `day-${localDate()}` : `day-${start}`
       this.setData({
         loading: false,
+        isCurrentWeek,
+        today: localDate(),
         days,
+        dateOptions: days.map((day) => day.date),
+        dateLabels: days.map((day) => `${day.label} ${day.weekday}`),
         skills,
+        selectableSkills: skills.filter((skill) => !skill.archived && skill.active),
         itemCount: items.length,
         plannedMinutes: items.reduce((sum, item) => sum + item.plannedMinutes, 0),
         doneCount: items.filter((item) => item.status === 'DONE').length,
         weekLabel: `${monthDay(start)} — ${monthDay(addDays(start, 6))}`,
-        scrollTarget: `day-${localDate()}`,
+        scrollTarget: '',
+      }, () => {
+        this.setData({ scrollTarget })
       })
     } catch (error) {
       this.setData({ loading: false })
@@ -99,33 +120,87 @@ Page({
   },
 
   previousWeek() {
-    this.setData({ selectedWeekStart: addDays(this.data.selectedWeekStart, -7) })
+    const next = addDays(this.data.selectedWeekStart, -7)
+    setSelectedWeek(next)
+    this.setData({ selectedWeekStart: next })
     void this.loadData()
   },
 
   nextWeek() {
-    this.setData({ selectedWeekStart: addDays(this.data.selectedWeekStart, 7) })
+    const next = addDays(this.data.selectedWeekStart, 7)
+    setSelectedWeek(next)
+    this.setData({ selectedWeekStart: next })
     void this.loadData()
   },
 
   currentWeek() {
-    this.setData({ selectedWeekStart: weekStart() })
+    const next = weekStart()
+    setSelectedWeek(next)
+    this.setData({ selectedWeekStart: next })
     void this.loadData()
   },
 
+  defaultAddDate() {
+    const start = this.data.selectedWeekStart
+    const today = localDate()
+    return today >= start && today <= addDays(start, 6) ? today : start
+  },
+
   openAdd(event: WechatMiniprogram.BaseEvent) {
-    const date = (event.currentTarget.dataset.date as string) || localDate()
-    if (this.data.skills.length === 0) {
+    if (this.data.selectableSkills.length === 0) {
       wx.showToast({ title: '请先添加技能', icon: 'none' })
       return
     }
+    const date = (event.currentTarget.dataset.date as string) || this.defaultAddDate()
+    const dateOptions = this.data.dateOptions
+    const dateIndex = Math.max(0, dateOptions.indexOf(date))
     this.setData({
       dialogOpen: true,
-      plannedDate: date,
+      plannedDate: dateOptions[dateIndex] || date,
+      dateIndex,
       title: '',
       note: '',
       skillIndex: 0,
     })
+  },
+
+  async batchGenerate() {
+    const skills = this.data.selectableSkills
+    if (skills.length === 0) {
+      wx.showToast({ title: '没有进行中的技能', icon: 'none' })
+      return
+    }
+    if (this.data.selectedWeekStart < weekStart()) {
+      wx.showToast({ title: '过去的一周不能再排计划', icon: 'none' })
+      return
+    }
+    const listed = skills.slice(0, 5)
+    const labels = [...listed.map((skill) => skill.name), '全部技能']
+    const choice = await new Promise<number>((resolve) => wx.showActionSheet({
+      itemList: labels,
+      success: (result) => resolve(result.tapIndex),
+      fail: () => resolve(-1),
+    }))
+    if (choice < 0) return
+    const targets = choice === listed.length ? skills : [listed[choice]]
+    if (!targets[0]) return
+    wx.showLoading({ title: '正在排这一周' })
+    try {
+      let created = 0
+      for (const skill of targets) {
+        const planned = await generatePlan(skill.id, this.data.selectedWeekStart)
+        created += planned.length
+      }
+      await this.loadData()
+      wx.hideLoading()
+      wx.showToast({
+        title: created > 0 ? `已排入 ${created} 项安排` : '这一周已经排好了',
+        icon: 'none',
+      })
+    } catch (error) {
+      wx.hideLoading()
+      wx.showToast({ title: (error as { message?: string }).message || '排期失败', icon: 'none' })
+    }
   },
 
   closeDialog() {
@@ -136,6 +211,11 @@ Page({
 
   onSkill(event: WechatMiniprogram.PickerChange) {
     this.setData({ skillIndex: Number(event.detail.value) })
+  },
+
+  onDate(event: WechatMiniprogram.PickerChange) {
+    const dateIndex = Number(event.detail.value)
+    this.setData({ dateIndex, plannedDate: this.data.dateOptions[dateIndex] })
   },
 
   onTitle(event: WechatMiniprogram.Input) {
@@ -158,16 +238,17 @@ Page({
     this.setData({ saving: true })
     try {
       await createItem({
-        skillId: this.data.skills[this.data.skillIndex].id,
+        skillId: this.data.selectableSkills[this.data.skillIndex].id,
         title: this.data.title.trim(),
         note: this.data.note.trim(),
-        plannedDate: this.data.plannedDate,
+        plannedDate: this.data.dateOptions[this.data.dateIndex] || this.data.plannedDate,
         plannedMinutes: this.data.minutesOptions[this.data.minutesIndex],
       })
       this.setData({ dialogOpen: false })
       await this.loadData()
+      wx.showToast({ title: '已加入这一周', icon: 'success' })
     } catch (error) {
-      wx.showToast({ title: (error as { message?: string }).message || '创建失败', icon: 'none' })
+      wx.showToast({ title: (error as { message?: string }).message || '添加失败', icon: 'none' })
     } finally {
       this.setData({ saving: false })
     }
@@ -177,8 +258,9 @@ Page({
     const id = Number(event.currentTarget.dataset.id)
     const minutes = Number(event.currentTarget.dataset.minutes)
     try {
-      await completeItem(id, minutes)
+      await completeStudyItem(id, minutes, 'week')
       await this.loadData()
+      wx.showToast({ title: `已按计划 ${minutes} 分钟记录`, icon: 'none' })
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '操作失败', icon: 'none' })
     }
@@ -193,5 +275,24 @@ Page({
       wx.showToast({ title: (error as { message?: string }).message || '操作失败', icon: 'none' })
     }
   },
-})
 
+  async removeItem(event: WechatMiniprogram.BaseEvent) {
+    const id = Number(event.currentTarget.dataset.id)
+    const result = await new Promise<WechatMiniprogram.ShowModalSuccessCallbackResult>(
+      (resolve) => wx.showModal({
+        title: '删除这项安排',
+        content: '删除后不计入完成率，也不会产生学习记录。',
+        confirmText: '删除',
+        success: resolve,
+      }),
+    )
+    if (!result.confirm) return
+    try {
+      await deleteStudyItem(id)
+      await this.loadData()
+      wx.showToast({ title: '已删除', icon: 'none' })
+    } catch (error) {
+      wx.showToast({ title: (error as { message?: string }).message || '删除失败', icon: 'none' })
+    }
+  },
+})

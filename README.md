@@ -120,28 +120,32 @@ npm run build
 
 ## REST API
 
+小程序当前使用下列接口（云托管 `callContainer` 私有链路，请求头带 `X-WX-SERVICE`）：
+
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/api/health` | 服务健康状态 |
-| `POST` | `/api/auth/register` | 注册并建立 Redis 会话 |
-| `POST` | `/api/auth/login` | 登录并建立 Redis 会话 |
-| `GET` | `/api/auth/me` | 获取当前登录用户 |
-| `POST` | `/api/auth/logout` | 退出并删除当前会话 |
-| `GET` | `/api/study/skills` | 查询当前用户的技能 |
-| `POST` | `/api/study/skills` | 创建学习技能 |
-| `PUT` | `/api/study/skills/{id}` | 修改学习技能 |
-| `POST` | `/api/study/skills/{id}/generate-plan` | 按每周预算生成计划 |
+| `POST` | `/api/auth/wechat/login` | 微信登录，由网关注入 openid，返回 access/refresh token |
+| `POST` | `/api/auth/token/refresh` | 刷新 access token（401 时自动调用一次） |
+| `POST` | `/api/auth/token/logout` | 退出并吊销 refresh token |
+| `GET` | `/api/auth/me` | 获取当前用户 |
+| `PUT` | `/api/auth/me` | 修改昵称（`flowboard-api-021` 起提供） |
+| `POST` | `/api/auth/token/login` | 账号密码登录，仅本地开发 |
+| `POST` | `/api/auth/token/register` | 账号密码注册，仅本地开发 |
+| `GET` | `/api/study/skills` | 查询技能 |
+| `POST` | `/api/study/skills` | 创建技能 |
+| `PUT` | `/api/study/skills/{id}` | 修改技能 |
+| `DELETE` | `/api/study/skills/{id}` | 删除技能 |
+| `POST` | `/api/study/skills/{id}/generate-plan` | 按每周次数与剩余天数生成本周安排 |
 | `GET` | `/api/study/items` | 查询日期范围内的学习安排 |
 | `POST` | `/api/study/items` | 创建学习安排 |
-| `POST` | `/api/study/items/{id}/complete` | 完成并记录真实学习时长 |
-| `POST` | `/api/study/items/{id}/skip` | 跳过当前安排 |
+| `DELETE` | `/api/study/items/{id}` | 删除学习安排 |
+| `POST` | `/api/study/items/{id}/complete` | 完成并记录学习时长，生成一条 StudySession |
+| `POST` | `/api/study/items/{id}/skip` | 跳过安排 |
+| `POST` | `/api/study/items/reflow` | 顺延过期的未完成安排 |
 | `GET` | `/api/study/sessions` | 查询学习记录 |
-| `GET` | `/api/tasks` | 查询任务，支持 `search`、`status`、`priority` |
-| `POST` | `/api/tasks` | 创建任务 |
-| `PATCH` | `/api/tasks/{id}` | 修改任务 |
-| `DELETE` | `/api/tasks/{id}` | 删除任务 |
 
-旧任务接口暂时保留，用于兼容改造前的保险版本；新学习计划使用 `/api/study/**` 接口。
+兼容接口 `/api/auth/login`、`/api/auth/register`、`/api/auth/logout`、`/api/tasks` 仍保留，用于改造前的保险版本，小程序不再调用。
 
 ## 配置
 

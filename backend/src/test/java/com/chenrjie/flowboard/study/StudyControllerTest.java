@@ -12,12 +12,17 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,42 +58,54 @@ class StudyControllerTest {
         skills.deleteAll();
     }
 
-    @Test
-    void createsSkillGeneratesPlanAndRecordsStudy() throws Exception {
-        String skillResponse = mockMvc.perform(post("/api/study/skills")
+    private static LocalDate nextWeekStart() {
+        return LocalDate.now()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .plusWeeks(1);
+    }
+
+    private long createSkill(String name, int weeklyMinutes, int sessionMinutes, int sessionsPerWeek)
+            throws Exception {
+        String response = mockMvc.perform(post("/api/study/skills")
                         .with(user(OWNER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "name":"英语口语",
+                                  "name":"%s",
                                   "description":"每周稳定练习",
                                   "accent":"#DBFF73",
-                                  "weeklyMinutes":180,
-                                  "sessionMinutes":30,
-                                  "sessionsPerWeek":3
+                                  "weeklyMinutes":%d,
+                                  "sessionMinutes":%d,
+                                  "sessionsPerWeek":%d
                                 }
-                                """))
+                                """.formatted(name, weeklyMinutes, sessionMinutes, sessionsPerWeek)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("英语口语"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
+        return objectMapper.readTree(response).get("id").asLong();
+    }
 
-        long skillId = objectMapper.readTree(skillResponse).get("id").asLong();
-
-        String planResponse = mockMvc.perform(post("/api/study/skills/{id}/generate-plan", skillId)
+    private JsonNode generateFor(long skillId, LocalDate weekStart) throws Exception {
+        String response = mockMvc.perform(post("/api/study/skills/{id}/generate-plan", skillId)
                         .with(user(OWNER))
-                        .param("weekStart", "2026-11-09"))
+                        .param("weekStart", weekStart.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(3)))
-                .andExpect(jsonPath("$[0].plannedDate").value("2026-11-09"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
+        return objectMapper.readTree(response);
+    }
 
-        JsonNode plan = objectMapper.readTree(planResponse);
+    @Test
+    void createsSkillGeneratesPlanAndRecordsStudy() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        LocalDate nextWeek = nextWeekStart();
+        JsonNode plan = generateFor(skillId, nextWeek);
+        assertEquals(3, plan.size());
+        assertEquals(nextWeek.toString(), plan.get(0).get("plannedDate").asText());
+
         long itemId = plan.get(0).get("id").asLong();
-
         mockMvc.perform(post("/api/study/items/{id}/complete", itemId)
                         .with(user(OWNER))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -100,8 +117,8 @@ class StudyControllerTest {
 
         mockMvc.perform(get("/api/study/sessions")
                         .with(user(OWNER))
-                        .param("from", "2026-11-01")
-                        .param("to", "2026-11-30"))
+                        .param("from", LocalDate.now().minusDays(1).toString())
+                        .param("to", LocalDate.now().plusDays(1).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].durationMinutes").value(35));
@@ -140,24 +157,7 @@ class StudyControllerTest {
     @Test
     void reflowsMissedItemsToUpcomingDays() throws Exception {
         LocalDate today = LocalDate.now();
-        String skillResponse = mockMvc.perform(post("/api/study/skills")
-                        .with(user(OWNER))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "name":"数据分析",
-                                  "description":"每周练习",
-                                  "accent":"#7DD3B0",
-                                  "weeklyMinutes":120,
-                                  "sessionMinutes":25,
-                                  "sessionsPerWeek":2
-                                }
-                                """))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        long skillId = objectMapper.readTree(skillResponse).get("id").asLong();
+        long skillId = createSkill("数据分析", 120, 25, 2);
 
         mockMvc.perform(post("/api/study/items")
                         .with(user(OWNER))
@@ -184,5 +184,105 @@ class StudyControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].plannedDate").value(today.toString()));
+    }
+
+    @Test
+    void editingSkillKeepsPlansInOtherWeeks() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        LocalDate nextWeek = nextWeekStart();
+        assertEquals(3, generateFor(skillId, nextWeek).size());
+
+        mockMvc.perform(put("/api/study/skills/{id}", skillId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name":"英语口语",
+                                  "description":"改成新的节奏",
+                                  "accent":"#8EA7FF",
+                                  "weeklyMinutes":150,
+                                  "sessionMinutes":25,
+                                  "sessionsPerWeek":5,
+                                  "active":true
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/study/items")
+                        .with(user(OWNER))
+                        .param("from", nextWeek.toString())
+                        .param("to", nextWeek.plusDays(6).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)));
+    }
+
+    @Test
+    void archivingSkillKeepsFuturePlansAndStudyHistory() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        LocalDate nextWeek = nextWeekStart();
+        JsonNode plan = generateFor(skillId, nextWeek);
+        long itemId = plan.get(0).get("id").asLong();
+
+        mockMvc.perform(post("/api/study/items/{id}/complete", itemId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"durationMinutes":30,"note":"完成一次练习"}
+                                """))
+                .andExpect(status().isOk());
+
+        long otherSkillId = createSkill("产品设计", 90, 30, 3);
+        generateFor(otherSkillId, nextWeek);
+
+        mockMvc.perform(delete("/api/study/skills/{id}", skillId).with(user(OWNER)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/study/items")
+                        .with(user(OWNER))
+                        .param("from", nextWeek.toString())
+                        .param("to", nextWeek.plusDays(6).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(6)));
+
+        mockMvc.perform(get("/api/study/sessions")
+                        .with(user(OWNER))
+                        .param("from", LocalDate.now().minusDays(1).toString())
+                        .param("to", LocalDate.now().plusDays(1).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        mockMvc.perform(get("/api/study/skills").with(user(OWNER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].archived").value(true));
+    }
+
+    @Test
+    void generateWeekFillsUpToConfiguredSessions() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        LocalDate nextWeek = nextWeekStart();
+
+        mockMvc.perform(post("/api/study/items")
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "skillId":%d,
+                                  "title":"手工加的一次",
+                                  "note":"",
+                                  "plannedDate":"%s",
+                                  "plannedMinutes":30
+                                }
+                                """.formatted(skillId, nextWeek.toString())))
+                .andExpect(status().isCreated());
+
+        JsonNode created = generateFor(skillId, nextWeek);
+        assertEquals(2, created.size());
+
+        mockMvc.perform(get("/api/study/items")
+                        .with(user(OWNER))
+                        .param("from", nextWeek.toString())
+                        .param("to", nextWeek.plusDays(6).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)));
     }
 }

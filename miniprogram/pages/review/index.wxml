@@ -1,18 +1,18 @@
 <view class="page" wx:if="{{!loading}}">
-  <text class="eyebrow">和自己核对一周</text>
+  <text class="eyebrow">{{weekLabel}} · {{isCurrentWeek ? '本周' : '非本周'}}</text>
   <text class="page-title">看见投入，而不只看见结果。</text>
   <text class="page-subtitle">学习计划不是考核表。复盘真实时间，给下一周一个更合适的节奏。</text>
   <view class="review-switcher">
-    <button bindtap="previousWeek">← 上一周</button>
-    <button bindtap="currentWeek">本周</button>
-    <button bindtap="nextWeek">下一周 →</button>
+    <button hover-class="week-nav-hover" bindtap="previousWeek">上周</button>
+    <button class="{{isCurrentWeek ? 'is-current' : ''}}" hover-class="week-nav-hover" bindtap="currentWeek">{{isCurrentWeek ? '本周' : '回到本周'}}</button>
+    <button hover-class="week-nav-hover" bindtap="nextWeek">下周</button>
   </view>
 
   <view class="metric-grid">
     <view class="metric-card card">
-      <text>本周专注</text>
+      <text>所选周专注</text>
       <text class="metric-value">{{totalMinutes}}</text>
-      <text class="metric-unit">分钟 / 目标 {{targetMinutes}}</text>
+      <text class="metric-unit">分钟 · 目标按当前配置 {{targetMinutes}}</text>
     </view>
     <view class="metric-card card">
       <text>有效学习日</text>
@@ -27,7 +27,7 @@
     <view class="metric-card card dark">
       <text>连续学习</text>
       <text class="metric-value">{{streak}}</text>
-      <text class="metric-unit">天 · 中断后仍可继续</text>
+      <text class="metric-unit">天 · 截至 {{weekEndLabel}}</text>
     </view>
   </view>
 
@@ -60,9 +60,8 @@
   </view>
 
   <view class="insight-card">
-    <text>本周提醒</text>
+    <text>所选周提醒</text>
     <text class="insight-copy">{{insight}}</text>
   </view>
 </view>
 <view wx:else class="loading">正在核对这一周的学习投入…</view>
-

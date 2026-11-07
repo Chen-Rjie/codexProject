@@ -1,21 +1,25 @@
 <view class="page" wx:if="{{!loading}}">
-  <text class="eyebrow">{{weekLabel}}</text>
+  <text class="eyebrow">{{weekLabel}} · {{isCurrentWeek ? '本周' : '非本周'}}</text>
   <text class="page-title">这一周，不追赶，只安排。</text>
   <text class="page-subtitle">把时间放进日程里，而不是留给“有空再说”。</text>
   <view class="week-switcher">
-    <button bindtap="previousWeek">←</button>
-    <button bindtap="currentWeek">本周</button>
-    <button bindtap="nextWeek">→</button>
+    <button hover-class="week-nav-hover" bindtap="previousWeek">上周</button>
+    <button class="{{isCurrentWeek ? 'is-current' : ''}}" hover-class="week-nav-hover" bindtap="currentWeek">{{isCurrentWeek ? '本周' : '回到本周'}}</button>
+    <button hover-class="week-nav-hover" bindtap="nextWeek">下周</button>
   </view>
-  <button class="primary-button add-plan" data-date="{{days[0].date}}" bindtap="openAdd">+ 添加安排</button>
+  <view class="add-plan-row">
+    <button class="primary-button add-plan" bindtap="openAdd">+ 添加一项安排</button>
+    <button class="batch-plan" bindtap="batchGenerate">按技能排一周</button>
+  </view>
 
   <view class="week-summary">
     <text><text class="summary-number">{{itemCount}}</text> 项安排</text>
     <text><text class="summary-number">{{plannedMinutes}}</text> 分钟</text>
     <text><text class="summary-number">{{doneCount}}</text> 项完成</text>
   </view>
+  <text class="week-hint">左右滑动查看整周 · 完成记录按实际完成日记入</text>
 
-  <scroll-view scroll-x enhanced scroll-with-animation scroll-into-view="{{scrollTarget}}" class="week-scroll">
+  <scroll-view scroll-x enhanced show-scrollbar="{{false}}" scroll-with-animation scroll-into-view="{{scrollTarget}}" class="week-scroll">
     <view class="week-row">
       <view wx:for="{{days}}" wx:key="date" id="day-{{item.date}}" class="day-column {{item.today ? 'is-today' : ''}}">
         <view class="day-heading">
@@ -24,17 +28,18 @@
           <button data-date="{{item.date}}" bindtap="openAdd">+</button>
         </view>
         <view class="day-items">
-          <view wx:for="{{item.items}}" wx:for-item="plan" wx:key="id" class="plan-item status-{{plan.status}}" style="border-left-color: {{plan.accent}};">
+          <view wx:for="{{item.items}}" wx:for-item="plan" wx:key="id" class="plan-item status-{{plan.status}}" style="border-left-color: {{plan.accent}};" data-id="{{plan.id}}" bindlongpress="removeItem">
             <text class="plan-skill">{{plan.skillName}}</text>
             <text class="plan-title">{{plan.title}}</text>
             <text class="plan-time">{{plan.plannedMinutes}} 分钟</text>
             <view wx:if="{{plan.status === 'PLANNED'}}" class="plan-actions">
-              <button data-id="{{plan.id}}" data-minutes="{{plan.plannedMinutes}}" bindtap="complete">完成</button>
-              <button data-id="{{plan.id}}" bindtap="skip">跳过</button>
+              <button wx:if="{{plan.plannedDate === today}}" class="plan-done" data-id="{{plan.id}}" data-minutes="{{plan.plannedMinutes}}" bindtap="complete" catchlongpress="noop">完成</button>
+              <button data-id="{{plan.id}}" bindtap="skip" catchlongpress="noop">跳过</button>
+              <button data-id="{{plan.id}}" class="plan-remove" bindtap="removeItem" catchlongpress="noop">删除</button>
             </view>
-            <text wx:else class="plan-status">{{plan.status === 'DONE' ? '✓ 已完成' : '已跳过'}}</text>
+            <text wx:else class="plan-status">{{plan.status === 'DONE' ? '已完成' : '已跳过'}}</text>
           </view>
-          <button wx:if="{{item.items.length === 0}}" class="blank-slot" data-date="{{item.date}}" bindtap="openAdd">留白，也很好</button>
+          <button wx:if="{{item.items.length === 0}}" class="blank-slot" data-date="{{item.date}}" bindtap="openAdd">+ 加到这一天</button>
         </view>
       </view>
     </view>
@@ -44,20 +49,26 @@
 
 <view wx:if="{{dialogOpen}}" class="dialog-mask" bindtap="closeDialog">
   <view class="dialog" catchtap="noop">
-    <text class="dialog-title">加入一项学习安排</text>
+    <text class="dialog-title">添加一项安排</text>
     <view class="field">
       <text class="field-label">学习技能</text>
-      <picker range="{{skills}}" range-key="name" value="{{skillIndex}}" bindchange="onSkill">
-        <view class="field-picker">{{skills[skillIndex].name}}</view>
+      <picker range="{{selectableSkills}}" range-key="name" value="{{skillIndex}}" bindchange="onSkill">
+        <view class="field-picker">{{selectableSkills[skillIndex].name}}</view>
+      </picker>
+    </view>
+    <view class="field">
+      <text class="field-label">安排日期</text>
+      <picker range="{{dateLabels}}" value="{{dateIndex}}" bindchange="onDate">
+        <view class="field-picker">{{dateLabels[dateIndex]}}</view>
       </picker>
     </view>
     <label class="field">
-      <text class="field-label">这次学什么</text>
-      <input class="field-input" placeholder="例如：练习 20 分钟商务口语" value="{{title}}" bindinput="onTitle" />
+      <text class="field-label">学习内容</text>
+      <input class="field-input" placeholder="例如：商务口语对话练习" value="{{title}}" cursor-spacing="30" bindinput="onTitle" />
     </label>
     <label class="field">
       <text class="field-label">补充说明</text>
-      <textarea class="field-area" placeholder="教材、章节或希望达成的结果" value="{{note}}" bindinput="onNote" />
+      <textarea class="field-area" placeholder="例如：第 3 章、剑桥教材 Unit 5" value="{{note}}" cursor-spacing="30" show-confirm-bar="{{false}}" bindinput="onNote" />
     </label>
     <view class="field">
       <text class="field-label">计划时长</text>
@@ -67,8 +78,7 @@
     </view>
     <view class="dialog-actions">
       <button class="secondary-button" bindtap="closeDialog">取消</button>
-      <button class="primary-button accent-button" loading="{{saving}}" bindtap="saveItem">加入计划</button>
+      <button class="primary-button accent-button" loading="{{saving}}" bindtap="saveItem">保存安排</button>
     </view>
   </view>
 </view>
-

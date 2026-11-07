@@ -1,39 +1,94 @@
-.add-plan {
-  margin-top: 28rpx;
+.page {
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.page-subtitle {
+  margin-bottom: 10rpx;
+}
+
+.add-plan-row {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 30rpx;
+}
+
+.add-plan-row .add-plan {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  min-height: 88rpx;
+  margin: 0 !important;
+}
+
+.batch-plan {
+  display: flex;
+  flex: 0 0 232rpx;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  margin: 0 !important;
+  color: #526159;
+  font-size: 23rpx;
+  line-height: 1.2;
+  background: #f0ede6;
+  border: 1rpx solid #d7d3c9;
+  border-radius: 16rpx;
 }
 
 .week-switcher {
   display: flex;
   gap: 10rpx;
   padding: 7rpx;
-  margin-top: 20rpx;
+  margin-top: 34rpx;
   background: rgba(255, 253, 248, 0.78);
   border: 1rpx solid #dcd8ce;
   border-radius: 18rpx;
 }
 
 .week-switcher button {
-  flex: 1;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
   height: 58rpx;
   color: #637069;
-  font-size: 20rpx;
+  font-size: 22rpx;
+  line-height: 1.2;
   background: transparent;
   border-radius: 12rpx;
 }
 
-.week-switcher button:nth-child(2) {
+.week-switcher button.is-current {
   color: #24372e;
   font-weight: 700;
   background: #dbff73;
 }
 
+.week-switcher button.week-nav-hover {
+  background: rgba(219, 255, 115, 0.32);
+}
+
+.week-switcher button.is-current.week-nav-hover {
+  background: #c9ef63;
+}
+
 .week-summary {
   display: flex;
-  gap: 28rpx;
-  padding: 24rpx 0;
+  gap: 12rpx;
+  padding: 24rpx 0 0;
   color: #7d8782;
-  font-size: 19rpx;
+  font-size: 21rpx;
   border-bottom: 1rpx solid #d8d4ca;
+}
+
+.week-summary > text {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-bottom: 20rpx;
 }
 
 .summary-number {
@@ -42,28 +97,45 @@
   font-weight: 750;
 }
 
+.week-hint {
+  display: block;
+  margin-top: 12rpx;
+  color: #9aa29e;
+  font-size: 20rpx;
+  text-align: right;
+}
+
 .week-scroll {
   width: 100%;
-  margin-top: 20rpx;
+  margin-top: 14rpx;
   white-space: nowrap;
 }
 
 .week-row {
   display: flex;
-  gap: 12rpx;
-  padding-bottom: 14rpx;
+  align-items: stretch;
+  padding-bottom: 12rpx;
 }
 
 .day-column {
   display: inline-flex;
-  flex: 0 0 250rpx;
+  flex: 0 0 341rpx;
   flex-direction: column;
-  min-height: 720rpx;
-  padding: 16rpx;
+  width: 341rpx;
+  min-width: 341rpx;
+  max-width: 341rpx;
+  min-height: 460rpx;
+  margin-right: 12rpx;
+  padding: 12rpx;
+  vertical-align: top;
   white-space: normal;
   background: rgba(231, 228, 219, 0.58);
   border: 1rpx solid #d7d3c9;
   border-radius: 24rpx;
+}
+
+.day-column:last-child {
+  margin-right: 0;
 }
 
 .day-column.is-today {
@@ -77,37 +149,46 @@
   align-items: center;
   padding: 6rpx 2rpx 15rpx;
   color: #65716a;
-  font-size: 19rpx;
+  font-size: 22rpx;
   font-weight: 700;
   border-bottom: 1rpx solid #d7d3c9;
 }
 
 .day-weekday {
   color: #939a96;
-  font-size: 17rpx;
+  font-size: 20rpx;
 }
 
 .day-heading button {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 38rpx;
-  height: 38rpx;
+  width: 56rpx;
+  height: 56rpx;
   margin-left: auto;
   color: #748078;
+  font-size: 26rpx;
+  line-height: 1;
   border: 1rpx solid #d2cec4;
-  border-radius: 10rpx;
+  border-radius: 12rpx;
 }
 
 .day-items {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 10rpx;
+  width: 100%;
+  min-width: 0;
   padding-top: 13rpx;
 }
 
 .plan-item {
-  padding: 14rpx;
+  width: 100%;
+  min-width: 0;
+  padding: 12rpx;
+  overflow: hidden;
   background: #fffdf8;
   border: 1rpx solid #dedad2;
   border-left: 6rpx solid #dbff73;
@@ -116,24 +197,28 @@
 
 .plan-skill {
   display: block;
+  overflow: hidden;
   color: #8c9590;
-  font-size: 16rpx;
+  font-size: 20rpx;
   font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .plan-title {
   display: block;
   margin-top: 7rpx;
-  font-size: 22rpx;
+  font-size: 23rpx;
   font-weight: 700;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .plan-time {
   display: block;
   margin-top: 7rpx;
   color: #939a96;
-  font-size: 17rpx;
+  font-size: 20rpx;
 }
 
 .plan-actions {
@@ -143,37 +228,51 @@
 }
 
 .plan-actions button {
-  padding: 7rpx 11rpx;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 56rpx;
+  padding: 0 6rpx;
   color: #526159;
-  font-size: 16rpx;
+  font-size: 20rpx;
+  line-height: 1.2;
   background: #f0ede6;
   border-radius: 9rpx;
 }
 
-.plan-actions button:first-child {
+.plan-actions button.plan-done {
   color: #17271f;
   background: #dbff73;
+}
+
+.plan-actions button.plan-remove {
+  color: #9a6857;
+  background: #faf0eb;
 }
 
 .plan-status {
   display: block;
   margin-top: 11rpx;
   color: #43805b;
-  font-size: 16rpx;
+  font-size: 20rpx;
   font-weight: 700;
 }
 
 .plan-item.status-DONE {
-  opacity: 0.62;
+  opacity: 0.72;
 }
 
 .blank-slot {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100% !important;
   min-height: 100rpx;
+  margin: 0 !important;
   color: #a0a6a2;
-  font-size: 17rpx;
+  font-size: 20rpx;
   border: 1rpx dashed #d3cfc4;
   border-radius: 14rpx;
 }

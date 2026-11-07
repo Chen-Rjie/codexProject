@@ -20,10 +20,10 @@
     "backgroundColor": "#FFFDF8",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/today/index", "text": "今日" },
-      { "pagePath": "pages/skills/index", "text": "技能" },
-      { "pagePath": "pages/plan/index", "text": "计划" },
-      { "pagePath": "pages/review/index", "text": "复盘" }
+      { "pagePath": "pages/today/index", "text": "今日", "iconPath": "assets/tab/today.png", "selectedIconPath": "assets/tab/today-active.png" },
+      { "pagePath": "pages/skills/index", "text": "技能", "iconPath": "assets/tab/skills.png", "selectedIconPath": "assets/tab/skills-active.png" },
+      { "pagePath": "pages/plan/index", "text": "计划", "iconPath": "assets/tab/plan.png", "selectedIconPath": "assets/tab/plan-active.png" },
+      { "pagePath": "pages/review/index", "text": "复盘", "iconPath": "assets/tab/review.png", "selectedIconPath": "assets/tab/review-active.png" }
     ]
   },
   "style": "v2",

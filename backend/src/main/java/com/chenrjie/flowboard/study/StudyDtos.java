@@ -90,6 +90,7 @@ public final class StudyDtos {
             int sessionMinutes,
             int sessionsPerWeek,
             boolean active,
+            boolean archived,
             Instant createdAt
     ) {
         public static SkillResponse from(StudySkill skill) {
@@ -102,6 +103,7 @@ public final class StudyDtos {
                     skill.getSessionMinutes(),
                     skill.getSessionsPerWeek(),
                     skill.isActive(),
+                    skill.isArchived(),
                     skill.getCreatedAt()
             );
         }

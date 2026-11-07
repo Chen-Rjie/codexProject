@@ -13,11 +13,12 @@
       placeholder="点击填写昵称"
       maxlength="20"
       value="{{nickname}}"
+      cursor-spacing="30"
       bindinput="onInput"
       bindblur="onBlur"
     />
     <text wx:if="{{error}}" class="error-text">{{error}}</text>
-    <button class="save-button" loading="{{busy}}" bindtap="save">保存并继续</button>
-    <button class="skip-button" bindtap="skip">稍后再说</button>
+    <button class="save-button" loading="{{busy}}" bindtap="save">{{isEdit ? '保存' : '保存并继续'}}</button>
+    <button class="skip-button" bindtap="skip">{{isEdit ? '取消' : '稍后再说'}}</button>
   </view>
 </view>

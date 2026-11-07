@@ -20,7 +20,13 @@ export interface StudySkill {
   sessionMinutes: number
   sessionsPerWeek: number
   active: boolean
+  archived: boolean
   createdAt: string
+}
+
+export function skillBudget(skill: StudySkill): number {
+  const product = (skill.sessionsPerWeek || 0) * (skill.sessionMinutes || 0)
+  return product > 0 ? product : skill.weeklyMinutes
 }
 
 export type StudyItemStatus = 'PLANNED' | 'DONE' | 'SKIPPED'
@@ -279,9 +285,9 @@ export function deleteSkill(id: number) {
   return request<void>({ path: `/study/skills/${id}`, method: 'DELETE' })
 }
 
-export function generatePlan(skillId: number) {
+export function generatePlan(skillId: number, week = weekStart()) {
   return request<StudyItem[]>({
-    path: `/study/skills/${skillId}/generate-plan?weekStart=${weekStart()}`,
+    path: `/study/skills/${skillId}/generate-plan?weekStart=${week}`,
     method: 'POST',
   })
 }
@@ -308,6 +314,18 @@ export function completeItem(id: number, durationMinutes: number, note = '') {
   })
 }
 
+export type CompletionSource = 'timer' | 'planned' | 'week'
+
+const COMPLETION_NOTES: Record<CompletionSource, string> = {
+  timer: '计时专注记录',
+  planned: '今日按计划完成',
+  week: '周计划按计划完成',
+}
+
+export function completeStudyItem(id: number, minutes: number, source: CompletionSource) {
+  return completeItem(id, Math.max(1, Math.round(minutes)), COMPLETION_NOTES[source])
+}
+
 export function skipItem(id: number) {
   return request<StudyItem>({
     path: `/study/items/${id}/skip`,
@@ -316,12 +334,16 @@ export function skipItem(id: number) {
   })
 }
 
+export function deleteStudyItem(id: number) {
+  return request<void>({ path: `/study/items/${id}`, method: 'DELETE' })
+}
+
 export function reflowItems() {
   return request<{ movedItems: number }>({ path: '/study/items/reflow', method: 'POST' })
 }
 
-export function listSessions() {
+export function listSessions(from = addDays(localDate(), -90), to = addDays(weekStart(), 6)) {
   return request<StudySession[]>({
-    path: `/study/sessions?from=${addDays(localDate(), -30)}&to=${addDays(weekStart(), 6)}`,
+    path: `/study/sessions?from=${from}&to=${to}`,
   })
 }

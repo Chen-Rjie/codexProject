@@ -6,12 +6,13 @@
       <text class="page-subtitle">完成最重要的一个小节就够了，稳定比冲刺更有价值。</text>
     </view>
     <view class="today-heading-actions">
+      <button class="edit-link" bindtap="editNickname">修改昵称</button>
       <button class="logout-link" bindtap="logout">退出</button>
     </view>
   </view>
 
   <view wx:if="{{skills.length === 0}}" class="empty-state first-run">
-    <view class="empty-mark">01</view>
+    <view class="empty-mark">+</view>
     <text class="empty-title">先从一项真正想学的技能开始</text>
     <text class="empty-copy">设定每周时间预算，系统会拆成可以完成的小步。</text>
     <button class="primary-button accent-button empty-action" bindtap="goSkills">添加第一项技能</button>
@@ -38,17 +39,30 @@
       </view>
     </view>
 
-    <view wx:if="{{timerItem}}" class="timer-card">
-      <view>
-        <text class="timer-kicker">正在专注</text>
-        <text class="timer-title">{{timerItem.title}}</text>
+    <block wx:if="{{timerItem}}">
+      <view wx:if="{{timerCollapsed}}" class="timer-mini" bindtap="toggleTimerCard">
+        <view class="timer-mini-dot {{timerRunning ? '' : 'is-paused'}}"></view>
+        <text class="timer-mini-label">{{timerRunning ? '专注中' : '已暂停'}} · {{timerItem.title}}</text>
+        <text class="timer-mini-time">{{timerLabel}}</text>
+        <text class="timer-mini-action">展开</text>
       </view>
-      <text class="timer-value">{{timerLabel}}</text>
-      <view class="timer-actions">
-        <button class="timer-pause" bindtap="toggleTimer">{{timerRunning ? '暂停' : '继续'}}</button>
-        <button class="timer-finish" bindtap="finishTimer">完成并记录</button>
+      <view wx:else class="timer-card">
+        <view class="timer-copy">
+          <view class="timer-kicker-row">
+            <text class="timer-kicker">{{timerRunning ? '正在专注' : '已暂停'}}</text>
+            <text class="timer-collapse" bindtap="toggleTimerCard">收起</text>
+          </view>
+          <text class="timer-title">{{timerItem.title}}</text>
+          <text class="timer-goal">目标 {{timerGoalMinutes}} 分钟 · {{timerRemainingLabel}}</text>
+        </view>
+        <text class="timer-value">{{timerLabel}}</text>
+        <view class="timer-progress"><view style="width: {{timerProgress}}%;"></view></view>
+        <view class="timer-actions">
+          <button class="timer-pause" bindtap="toggleTimer">{{timerRunning ? '暂停' : '继续'}}</button>
+          <button class="timer-finish" bindtap="finishTimer">{{timerReachedGoal ? '完成并记录' : '提前完成'}}</button>
+        </view>
       </view>
-    </view>
+    </block>
 
     <view class="section-head">
       <view><text class="eyebrow">TODAY</text><text class="section-title">今天学什么</text></view>
@@ -71,7 +85,7 @@
           <text wx:if="{{item.note}}" class="agenda-note">{{item.note}}</text>
         </view>
         <view wx:if="{{item.status === 'PLANNED'}}" class="agenda-actions">
-          <button class="agenda-done" data-id="{{item.id}}" bindtap="startTimer">开始</button>
+          <button class="agenda-done {{timerItem && timerItem.id === item.id ? 'is-timing' : ''}}" data-id="{{item.id}}" bindtap="startTimer">{{timerItem && timerItem.id === item.id ? '专注中' : '开始'}}</button>
           <button class="agenda-quick" data-id="{{item.id}}" bindtap="quickComplete">按计划完成</button>
           <button class="agenda-skip" data-id="{{item.id}}" bindtap="skip">跳过</button>
         </view>

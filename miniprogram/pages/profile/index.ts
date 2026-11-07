@@ -1,10 +1,22 @@
-import { updateDisplayName } from '../../utils/api'
+import { getStoredUser, updateDisplayName } from '../../utils/api'
+
+const DEFAULT_WECHAT_DISPLAY_NAME = '微信用户'
 
 Page({
   data: {
     nickname: '',
     busy: false,
     error: '',
+    isEdit: false,
+  },
+
+  onLoad(options: Record<string, string | undefined>) {
+    const isEdit = options?.mode === 'edit'
+    const current = getStoredUser()?.displayName ?? ''
+    this.setData({
+      isEdit,
+      nickname: current && current !== DEFAULT_WECHAT_DISPLAY_NAME ? current : '',
+    })
   },
 
   onInput(event: WechatMiniprogram.Input) {
@@ -13,6 +25,14 @@ Page({
 
   onBlur(event: WechatMiniprogram.Input) {
     this.setData({ nickname: event.detail.value })
+  },
+
+  goBack() {
+    if (this.data.isEdit) {
+      wx.navigateBack()
+    } else {
+      wx.switchTab({ url: '/pages/today/index' })
+    }
   },
 
   async save() {
@@ -25,7 +45,7 @@ Page({
     this.setData({ busy: true, error: '' })
     try {
       await updateDisplayName(nickname)
-      wx.switchTab({ url: '/pages/today/index' })
+      this.goBack()
     } catch (error) {
       const failure = error as { message?: string }
       this.setData({ error: failure.message || '保存失败，请稍后重试' })
@@ -35,6 +55,6 @@ Page({
   },
 
   skip() {
-    wx.switchTab({ url: '/pages/today/index' })
+    this.goBack()
   },
 })

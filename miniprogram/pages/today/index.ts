@@ -1,6 +1,6 @@
 import type { AuthUser } from '../../app'
 import {
-  completeItem,
+  completeStudyItem,
   ensureLogin,
   getStoredUser,
   listItems,
@@ -9,6 +9,7 @@ import {
   logout,
   reflowItems,
   skipItem,
+  type CompletionSource,
   type StudyItem,
   type StudySession,
   type StudySkill,
@@ -22,6 +23,7 @@ interface StoredTimer {
   seconds: number
   running: boolean
   startedAt: number | null
+  collapsed?: boolean
 }
 
 function timerLabel(seconds: number): string {
@@ -53,6 +55,11 @@ Page({
     timerStartedAt: 0,
     timerLabel: '00:00',
     timerRunning: false,
+    timerCollapsed: false,
+    timerGoalMinutes: 0,
+    timerReachedGoal: true,
+    timerProgress: 0,
+    timerRemainingLabel: '',
   },
 
   timerHandle: 0 as number,
@@ -73,6 +80,10 @@ Page({
 
   onHide() {
     this.persistTimer()
+    if (this.timerHandle) {
+      clearInterval(this.timerHandle)
+      this.timerHandle = 0
+    }
   },
 
   onPullDownRefresh() {
@@ -93,11 +104,12 @@ Page({
     }
     this.setData({
       timerItem: stored.item,
-      timerSeconds: seconds,
       timerStartedAt: stored.startedAt || 0,
       timerRunning: stored.running,
-      timerLabel: timerLabel(seconds),
+      timerCollapsed: stored.collapsed ?? false,
+      timerGoalMinutes: stored.item.plannedMinutes || 0,
     })
+    this.updateTimerDisplay(seconds)
     if (stored.running) this.startInterval()
   },
 
@@ -111,8 +123,43 @@ Page({
       seconds: this.data.timerSeconds,
       running: this.data.timerRunning,
       startedAt: this.data.timerStartedAt || null,
+      collapsed: this.data.timerCollapsed,
     }
     wx.setStorageSync(TIMER_STORAGE_KEY, stored)
+  },
+
+  clearTimer() {
+    if (this.timerHandle) {
+      clearInterval(this.timerHandle)
+      this.timerHandle = 0
+    }
+    wx.removeStorageSync(TIMER_STORAGE_KEY)
+    this.setData({
+      timerItem: null,
+      timerSeconds: 0,
+      timerStartedAt: 0,
+      timerRunning: false,
+      timerLabel: '00:00',
+      timerCollapsed: false,
+      timerGoalMinutes: 0,
+      timerReachedGoal: true,
+      timerProgress: 0,
+      timerRemainingLabel: '',
+    })
+  },
+
+  reconcileTimer(items: StudyItem[]) {
+    if (!this.data.timerItem) return
+    const latest = items.find((item) => item.id === this.data.timerItem?.id)
+    if (!latest || latest.status !== 'PLANNED') {
+      this.clearTimer()
+      return
+    }
+    this.setData({
+      timerItem: latest,
+      timerGoalMinutes: latest.plannedMinutes || 0,
+    })
+    this.updateTimerDisplay(this.data.timerSeconds)
   },
 
   async loadData() {
@@ -120,7 +167,10 @@ Page({
     try {
       const today = localDate()
       const start = weekStart()
-      await reflowItems()
+      const reflow = await reflowItems()
+      if (reflow.movedItems > 0) {
+        wx.showToast({ title: `已顺延 ${reflow.movedItems} 项错过的安排`, icon: 'none' })
+      }
       const [skills, items, sessions] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
@@ -158,36 +208,63 @@ Page({
         progress: todayItems.length ? Math.round((doneCount / todayItems.length) * 100) : 0,
         streak: this.calculateStreak(sessions, today),
       })
+      this.reconcileTimer(todayItems)
     } catch (error) {
       this.setData({ loading: false })
       wx.showToast({ title: (error as { message?: string }).message || '加载失败', icon: 'none' })
     }
   },
 
-  calculateStreak(sessions: StudySession[], today: string): number {
+  calculateStreak(sessions: StudySession[], cursor: string): number {
     const dates = new Set(sessions.map((session) => session.studiedOn))
-    let cursor = today
+    let day = cursor
     let streak = 0
-    while (dates.has(cursor)) {
+    while (dates.has(day)) {
       streak += 1
-      cursor = addDays(cursor, -1)
+      day = addDays(day, -1)
     }
     return streak
   },
 
   startTimer(event: WechatMiniprogram.BaseEvent) {
+    if (this.data.timerItem) {
+      if (this.data.timerCollapsed) {
+        this.setData({ timerCollapsed: false })
+        this.persistTimer()
+        wx.showToast({ title: '已展开当前专注', icon: 'none' })
+      } else {
+        wx.showToast({ title: '请先结束当前专注', icon: 'none' })
+      }
+      return
+    }
     const id = Number(event.currentTarget.dataset.id)
     const item = this.data.todayItems.find((entry) => entry.id === id) || null
     if (!item) return
-    this.startInterval()
     this.setData({
       timerItem: item,
-      timerSeconds: 0,
       timerStartedAt: Date.now(),
-      timerLabel: '00:00',
       timerRunning: true,
+      timerCollapsed: false,
+      timerGoalMinutes: item.plannedMinutes || 0,
     })
+    this.updateTimerDisplay(0)
+    this.startInterval()
     this.persistTimer()
+  },
+
+  updateTimerDisplay(seconds: number) {
+    const goal = this.data.timerGoalMinutes || 0
+    const target = Math.max(1, goal) * 60
+    const remaining = Math.max(0, Math.ceil((target - seconds) / 60))
+    this.setData({
+      timerSeconds: seconds,
+      timerLabel: timerLabel(seconds),
+      timerReachedGoal: goal === 0 || seconds >= target,
+      timerProgress: Math.min(100, Math.round((seconds / target) * 100)),
+      timerRemainingLabel: goal === 0
+        ? '自由专注'
+        : remaining > 0 ? `还需 ${remaining} 分钟` : '已达成目标',
+    })
   },
 
   startInterval() {
@@ -196,11 +273,13 @@ Page({
       const seconds = this.data.timerStartedAt
         ? Math.max(0, Math.floor((Date.now() - this.data.timerStartedAt) / 1000))
         : this.data.timerSeconds
-      this.setData({
-        timerSeconds: seconds,
-        timerLabel: timerLabel(seconds),
-      })
+      this.updateTimerDisplay(seconds)
     }, 1000) as unknown as number
+  },
+
+  toggleTimerCard() {
+    this.setData({ timerCollapsed: !this.data.timerCollapsed })
+    this.persistTimer()
   },
 
   toggleTimer() {
@@ -217,38 +296,50 @@ Page({
     }
   },
 
+  confirmEarlyFinish(goal: number, elapsed: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      wx.showModal({
+        title: '提前结束这次专注？',
+        content: `计划 ${goal} 分钟，已专注约 ${elapsed} 分钟。提前结束会按 ${elapsed} 分钟记录，并把这项任务标记为完成。`,
+        confirmText: '仍要结束',
+        cancelText: '继续专注',
+        success: (res) => resolve(res.confirm),
+        fail: () => resolve(false),
+      })
+    })
+  },
+
   async finishTimer() {
     if (!this.data.timerItem) return
+    const goal = this.data.timerGoalMinutes
     const minutes = Math.max(1, Math.ceil(this.data.timerSeconds / 60))
-    await this.recordDone(this.data.timerItem, minutes)
-    clearInterval(this.timerHandle)
-    this.timerHandle = 0
-    wx.removeStorageSync(TIMER_STORAGE_KEY)
-    this.setData({
-      timerItem: null,
-      timerSeconds: 0,
-      timerStartedAt: 0,
-      timerRunning: false,
-      timerLabel: '00:00',
-    })
+    if (goal > 0 && !this.data.timerReachedGoal) {
+      const confirmed = await this.confirmEarlyFinish(goal, minutes)
+      if (!confirmed) return
+    }
+    const recorded = await this.recordDone(this.data.timerItem, minutes, 'timer')
+    if (!recorded) return
+    if (this.data.timerItem) this.clearTimer()
   },
 
   async quickComplete(event: WechatMiniprogram.BaseEvent) {
     const id = Number(event.currentTarget.dataset.id)
     const item = this.data.todayItems.find((entry) => entry.id === id)
-    if (item) await this.recordDone(item, item.plannedMinutes)
+    if (item) await this.recordDone(item, item.plannedMinutes, 'planned')
   },
 
-  async recordDone(item: StudyItem, minutes: number) {
+  async recordDone(item: StudyItem, minutes: number, source: CompletionSource): Promise<boolean> {
     wx.showLoading({ title: '记录中' })
     try {
-      await completeItem(item.id, minutes)
+      await completeStudyItem(item.id, minutes, source)
       await this.loadData()
       wx.hideLoading()
       wx.showToast({ title: '已记录', icon: 'success' })
+      return true
     } catch (error) {
       wx.hideLoading()
       wx.showToast({ title: (error as { message?: string }).message || '记录失败', icon: 'none' })
+      return false
     }
   },
 
@@ -270,9 +361,11 @@ Page({
     wx.switchTab({ url: '/pages/plan/index' })
   },
 
+  editNickname() {
+    wx.navigateTo({ url: '/pages/profile/index?mode=edit' })
+  },
+
   async logout() {
     await logout()
   },
-
 })
-
