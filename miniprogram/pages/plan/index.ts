@@ -7,6 +7,7 @@ import {
   listItems,
   listSkills,
   skipItem,
+  visibleItems,
   type StudyItem,
   type StudySkill,
 } from '../../utils/api'
@@ -72,11 +73,13 @@ Page({
     this.setData({ loading: true })
     try {
       const start = this.data.selectedWeekStart
-      const [skills, items] = await Promise.all([
+      const [allSkills, allItems] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
       ])
       if (seq !== this.loadSeq) return
+      const skills = allSkills.filter((skill) => !skill.archived)
+      const items = visibleItems(allItems, allSkills)
       const days = Array.from({ length: 7 }, (_, index) => {
         const date = addDays(start, index)
         return {

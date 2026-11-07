@@ -3,7 +3,7 @@
   <text class="page-title">你的技能组合。</text>
   <text class="page-subtitle">同时学几项，不等于几项一起推进。先定下每次学多久、每周学几次，预算会自动算好。</text>
 
-  <button class="primary-button add-skill" bindtap="openDialog">+ 添加技能</button>
+  <button wx:if="{{skills.length > 0}}" class="primary-button add-skill" bindtap="openDialog">+ 添加技能</button>
 
   <view wx:if="{{skills.length}}" class="summary-strip">
     <view><text>技能数量</text><text class="summary-value">{{skills.length}}</text></view>

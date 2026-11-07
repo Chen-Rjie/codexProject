@@ -4,6 +4,7 @@ import {
   listSessions,
   listSkills,
   skillBudget,
+  visibleItems,
   type StudyItem,
   type StudySession,
   type StudySkill,
@@ -59,12 +60,13 @@ Page({
       const end = addDays(start, 6)
       const today = localDate()
       const effectiveEnd = end < today ? end : today
-      const [skills, items, sessions] = await Promise.all([
+      const [skills, allItems, sessions] = await Promise.all([
         listSkills(),
         listItems(start, end),
         listSessions(addDays(start, -90), effectiveEnd),
       ])
       if (seq !== this.loadSeq) return
+      const items = visibleItems(allItems, skills)
       const weeklySessions = sessions.filter(
         (session) => session.studiedOn >= start && session.studiedOn <= end,
       )

@@ -43,6 +43,13 @@ export interface StudyItem {
   completedAt: string | null
 }
 
+export function visibleItems(items: StudyItem[], skills: StudySkill[]): StudyItem[] {
+  const activeSkillIds = new Set(
+    skills.filter((skill) => !skill.archived).map((skill) => skill.id),
+  )
+  return items.filter((item) => activeSkillIds.has(item.skillId))
+}
+
 export interface StudySession {
   id: number
   skillId: number

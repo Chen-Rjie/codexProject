@@ -286,7 +286,7 @@ Page({
       const result = await new Promise<WechatMiniprogram.ShowModalSuccessCallbackResult>(
         (resolve) => wx.showModal({
           title: '移除技能',
-          content: `“${skill.name}”会从技能列表移除，已经排好的计划和学习记录都会保留。`,
+          content: `“${skill.name}”会从技能列表移除，未完成的安排也不再显示在今日和计划页；已有的学习时长记录会保留。`,
           confirmText: '移除',
           success: resolve,
         }),
