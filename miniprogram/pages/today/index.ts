@@ -10,6 +10,7 @@ import {
   reflowItems,
   skipItem,
   visibleItems,
+  visibleSessions,
   type CompletionSource,
   type StudyItem,
   type StudySession,
@@ -175,7 +176,7 @@ Page({
       if (reflow.movedItems > 0) {
         wx.showToast({ title: `已顺延 ${reflow.movedItems} 项错过的安排`, icon: 'none' })
       }
-      const [allSkills, allItems, sessions] = await Promise.all([
+      const [allSkills, allItems, allSessions] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
         listSessions(),
@@ -183,6 +184,7 @@ Page({
       if (seq !== this.loadSeq) return
       const skills = allSkills.filter((skill) => !skill.archived)
       const items = visibleItems(allItems, allSkills)
+      const sessions = visibleSessions(allSessions, allSkills)
       const todayItems = items
         .filter((item) => item.plannedDate === today)
         .map((item) => {

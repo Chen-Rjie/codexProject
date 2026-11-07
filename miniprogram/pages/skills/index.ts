@@ -8,6 +8,7 @@ import {
   listSkills,
   skillBudget,
   updateSkill,
+  visibleSessions,
   type StudyItem,
   type StudySession,
   type StudySkill,
@@ -63,12 +64,13 @@ Page({
     this.setData({ loading: true })
     try {
       const start = weekStart()
-      const [skills, items, sessions] = await Promise.all([
+      const [skills, items, allSessions] = await Promise.all([
         listSkills(),
         listItems(start, addDays(start, 6)),
         listSessions(),
       ])
       if (seq !== this.loadSeq) return
+      const sessions = visibleSessions(allSessions, skills)
       const weekSessions = sessions.filter(
         (session) => session.studiedOn >= start && session.studiedOn <= addDays(start, 6),
       )

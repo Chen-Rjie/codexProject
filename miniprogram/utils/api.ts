@@ -43,11 +43,18 @@ export interface StudyItem {
   completedAt: string | null
 }
 
+function activeSkillIds(skills: StudySkill[]): Set<number> {
+  return new Set(skills.filter((skill) => !skill.archived).map((skill) => skill.id))
+}
+
 export function visibleItems(items: StudyItem[], skills: StudySkill[]): StudyItem[] {
-  const activeSkillIds = new Set(
-    skills.filter((skill) => !skill.archived).map((skill) => skill.id),
-  )
-  return items.filter((item) => activeSkillIds.has(item.skillId))
+  const ids = activeSkillIds(skills)
+  return items.filter((item) => ids.has(item.skillId))
+}
+
+export function visibleSessions(sessions: StudySession[], skills: StudySkill[]): StudySession[] {
+  const ids = activeSkillIds(skills)
+  return sessions.filter((session) => ids.has(session.skillId))
 }
 
 export interface StudySession {
