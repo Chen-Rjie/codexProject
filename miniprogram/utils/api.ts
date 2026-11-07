@@ -6,6 +6,7 @@ import {
 } from '../config'
 import type { AuthUser } from '../app'
 import { addDays, localDate, weekStart } from './date'
+import { resetSelectedWeek } from './weekState'
 
 const ACCESS_KEY = 'flowboard_access_token'
 const REFRESH_KEY = 'flowboard_refresh_token'
@@ -89,6 +90,7 @@ export function clearSession() {
   wx.removeStorageSync(USER_KEY)
   const app = getApp<{ globalData: { user: AuthUser | null } }>()
   app.globalData.user = null
+  resetSelectedWeek()
 }
 
 function rawRequest<T>(options: RequestOptions): Promise<T> {
@@ -155,8 +157,11 @@ function rawRequest<T>(options: RequestOptions): Promise<T> {
   })
 }
 
-async function refreshSession(): Promise<boolean> {
-  const refreshToken = wx.getStorageSync(REFRESH_KEY)
+let inflightRefresh: Promise<boolean> | null = null
+let redirectingToLogin = false
+
+async function doRefreshSession(): Promise<boolean> {
+  const refreshToken = wx.getStorageSync<string>(REFRESH_KEY)
   if (!refreshToken) return false
   try {
     const tokens = await rawRequest<TokenResponse>({
@@ -167,10 +172,28 @@ async function refreshSession(): Promise<boolean> {
     })
     saveTokens(tokens)
     return true
-  } catch {
-    clearSession()
+  } catch (error) {
+    const status = (error as { status?: number }).status
+    if (status === 401 || status === 400) {
+      clearSession()
+    }
     return false
   }
+}
+
+function refreshSession(): Promise<boolean> {
+  if (!inflightRefresh) {
+    inflightRefresh = doRefreshSession().finally(() => {
+      inflightRefresh = null
+    })
+  }
+  return inflightRefresh
+}
+
+function goToLogin() {
+  if (redirectingToLogin) return
+  redirectingToLogin = true
+  wx.reLaunch({ url: '/pages/login/index', complete: () => { redirectingToLogin = false } })
 }
 
 export async function request<T>(options: RequestOptions): Promise<T> {
@@ -182,7 +205,7 @@ export async function request<T>(options: RequestOptions): Promise<T> {
       if (await refreshSession()) {
         return rawRequest<T>({ ...options, retry: false })
       }
-      wx.reLaunch({ url: '/pages/login/index' })
+      goToLogin()
     }
     throw error
   }
@@ -238,6 +261,7 @@ export async function logout() {
       path: '/auth/token/logout',
       method: 'POST',
       data: { refreshToken },
+      retry: false,
     })
   } finally {
     clearSession()

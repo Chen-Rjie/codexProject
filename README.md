@@ -132,20 +132,28 @@ npm run build
 | `PUT` | `/api/auth/me` | 修改昵称（`flowboard-api-021` 起提供） |
 | `POST` | `/api/auth/token/login` | 账号密码登录，仅本地开发 |
 | `POST` | `/api/auth/token/register` | 账号密码注册，仅本地开发 |
-| `GET` | `/api/study/skills` | 查询技能 |
+| `GET` | `/api/study/skills` | 查询技能（含已归档，返回 `archived` 标记） |
 | `POST` | `/api/study/skills` | 创建技能 |
-| `PUT` | `/api/study/skills/{id}` | 修改技能 |
-| `DELETE` | `/api/study/skills/{id}` | 删除技能 |
-| `POST` | `/api/study/skills/{id}/generate-plan` | 按每周次数与剩余天数生成本周安排 |
-| `GET` | `/api/study/items` | 查询日期范围内的学习安排 |
-| `POST` | `/api/study/items` | 创建学习安排 |
-| `DELETE` | `/api/study/items/{id}` | 删除学习安排 |
-| `POST` | `/api/study/items/{id}/complete` | 完成并记录学习时长，生成一条 StudySession |
-| `POST` | `/api/study/items/{id}/skip` | 跳过安排 |
-| `POST` | `/api/study/items/reflow` | 顺延过期的未完成安排 |
-| `GET` | `/api/study/sessions` | 查询学习记录 |
+| `PUT` | `/api/study/skills/{id}` | 修改技能（`active` 省略时保持原值） |
+| `DELETE` | `/api/study/skills/{id}` | 归档技能，从列表移除，保留全部计划与学习记录 |
+| `POST` | `/api/study/skills/{id}/generate-plan` | 按每周次数补足指定周安排；`weekStart` 可传，过去周与已停止排期返回 409/空 |
+| `GET` | `/api/study/items` | 查询日期范围内的学习安排（跨度上限 366 天） |
+| `POST` | `/api/study/items` | 创建学习安排（已停止排期返回 409） |
+| `DELETE` | `/api/study/items/{id}` | 删除学习安排，已产生的学习记录保留 |
+| `POST` | `/api/study/items/{id}/complete` | 完成并记录学习时长（幂等；未来日期返回 409；单次 1–600 分钟） |
+| `POST` | `/api/study/items/{id}/skip` | 跳过安排（已完成项返回 409；不覆盖原备注） |
+| `POST` | `/api/study/items/reflow` | 顺延过期的未完成安排，顺延备注只追加一次 |
+| `GET` | `/api/study/sessions` | 查询学习记录（跨度上限 366 天） |
+
+技能有两个独立状态：`active=false` 表示「停止排期」（可逆，不再产生新安排，已有安排保留），`archived=true` 表示「已移除」（不再出现在技能列表，也不再可编辑或排期）。两者都**不会删除** `study_items` 和 `study_sessions`；计划页仍用归档技能的名称显示历史安排。`GET /api/study/skills` 会返回归档技能，客户端需按 `archived` 自行过滤列表，同时保留它做名称映射。
 
 兼容接口 `/api/auth/login`、`/api/auth/register`、`/api/auth/logout`、`/api/tasks` 仍保留，用于改造前的保险版本，小程序不再调用。
+
+## 数据库迁移
+
+`V1`–`V4` 位于 `backend/src/main/resources/db/migration/`，由 Flyway 在后端启动时自动执行，**不需要手工执行 SQL**。本地配置是同步迁移（`flyway.enabled: true`、`ddl-auto: validate`）；云托管配置是异步迁移（`app.database.async-initialization: true`），迁移完成后 `/api/health/database` 才就绪，期间 `/api/study/**` 返回带 `Retry-After` 的 503。
+
+`V4__archive_study_skills.sql` 会新增 `archived` 列并把唯一约束改为 `(owner_id, name, archived)`，使同名技能在归档后可以重新创建。**不要修改已发布的迁移文件**，否则 Flyway 校验 checksum 会失败；新的结构变更请新增 `V5`。
 
 ## 配置
 

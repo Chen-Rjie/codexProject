@@ -88,7 +88,9 @@ export function PlanView({
                         <span className="week-item-skill">{skill?.name ?? '学习'}</span>
                         <h3>{item.title}</h3>
                         <span>{item.plannedMinutes} 分钟</span>
-                        {item.status === 'PLANNED' ? (
+                        {item.status === 'PLANNED' && item.plannedDate > today ? (
+                          <span className="week-item-status">待到计划日期</span>
+                        ) : item.status === 'PLANNED' ? (
                           <div className="week-item-actions">
                             <button
                               type="button"

@@ -17,6 +17,7 @@ import {
 import { addDays, localDate, monthDay, weekStart, weekday } from '../../utils/date'
 
 const TIMER_STORAGE_KEY = 'flowboard_timer_v1'
+const MAX_SESSION_MINUTES = 600
 
 interface StoredTimer {
   item: StudyItem
@@ -63,6 +64,8 @@ Page({
   },
 
   timerHandle: 0 as number,
+  loadSeq: 0 as number,
+  actionLock: false,
 
   onLoad() {
     if (!ensureLogin()) return
@@ -74,7 +77,6 @@ Page({
   onShow() {
     if (!ensureLogin()) return
     this.setData({ user: getStoredUser() })
-    this.restoreTimer()
     void this.loadData()
   },
 
@@ -151,7 +153,7 @@ Page({
   reconcileTimer(items: StudyItem[]) {
     if (!this.data.timerItem) return
     const latest = items.find((item) => item.id === this.data.timerItem?.id)
-    if (!latest || latest.status !== 'PLANNED') {
+    if (!latest || latest.status !== 'PLANNED' || latest.plannedDate !== localDate()) {
       this.clearTimer()
       return
     }
@@ -163,6 +165,7 @@ Page({
   },
 
   async loadData() {
+    const seq = ++this.loadSeq
     this.setData({ loading: true })
     try {
       const today = localDate()
@@ -176,6 +179,7 @@ Page({
         listItems(start, addDays(start, 6)),
         listSessions(),
       ])
+      if (seq !== this.loadSeq) return
       const todayItems = items
         .filter((item) => item.plannedDate === today)
         .map((item) => {
@@ -208,9 +212,13 @@ Page({
         progress: todayItems.length ? Math.round((doneCount / todayItems.length) * 100) : 0,
         streak: this.calculateStreak(sessions, today),
       })
+      if (seq !== this.loadSeq) return
+      this.restoreTimer()
       this.reconcileTimer(todayItems)
     } catch (error) {
+      if (seq !== this.loadSeq) return
       this.setData({ loading: false })
+      this.reconcileTimer(this.data.todayItems)
       wx.showToast({ title: (error as { message?: string }).message || '加载失败', icon: 'none' })
     }
   },
@@ -239,7 +247,7 @@ Page({
     }
     const id = Number(event.currentTarget.dataset.id)
     const item = this.data.todayItems.find((entry) => entry.id === id) || null
-    if (!item) return
+    if (!item || item.status !== 'PLANNED') return
     this.setData({
       timerItem: item,
       timerStartedAt: Date.now(),
@@ -312,12 +320,23 @@ Page({
   async finishTimer() {
     if (!this.data.timerItem) return
     const goal = this.data.timerGoalMinutes
-    const minutes = Math.max(1, Math.ceil(this.data.timerSeconds / 60))
+    const elapsed = Math.max(1, Math.ceil(this.data.timerSeconds / 60))
     if (goal > 0 && !this.data.timerReachedGoal) {
-      const confirmed = await this.confirmEarlyFinish(goal, minutes)
+      const confirmed = await this.confirmEarlyFinish(goal, Math.min(MAX_SESSION_MINUTES, elapsed))
       if (!confirmed) return
     }
-    const recorded = await this.recordDone(this.data.timerItem, minutes, 'timer')
+    if (elapsed > MAX_SESSION_MINUTES) {
+      const confirmed = await new Promise<boolean>((resolve) => wx.showModal({
+        title: '专注时间较长',
+        content: `单次最多记录 ${MAX_SESSION_MINUTES} 分钟，超出部分不会计入。`,
+        confirmText: '继续记录',
+        cancelText: '返回',
+        success: (res) => resolve(res.confirm),
+        fail: () => resolve(false),
+      }))
+      if (!confirmed) return
+    }
+    const recorded = await this.recordDone(this.data.timerItem, Math.min(MAX_SESSION_MINUTES, elapsed), 'timer')
     if (!recorded) return
     if (this.data.timerItem) this.clearTimer()
   },
@@ -325,10 +344,12 @@ Page({
   async quickComplete(event: WechatMiniprogram.BaseEvent) {
     const id = Number(event.currentTarget.dataset.id)
     const item = this.data.todayItems.find((entry) => entry.id === id)
-    if (item) await this.recordDone(item, item.plannedMinutes, 'planned')
+    if (item) await this.recordDone(item, Math.min(MAX_SESSION_MINUTES, item.plannedMinutes), 'planned')
   },
 
   async recordDone(item: StudyItem, minutes: number, source: CompletionSource): Promise<boolean> {
+    if (this.actionLock) return false
+    this.actionLock = true
     wx.showLoading({ title: '记录中' })
     try {
       await completeStudyItem(item.id, minutes, source)
@@ -340,16 +361,22 @@ Page({
       wx.hideLoading()
       wx.showToast({ title: (error as { message?: string }).message || '记录失败', icon: 'none' })
       return false
+    } finally {
+      this.actionLock = false
     }
   },
 
   async skip(event: WechatMiniprogram.BaseEvent) {
+    if (this.actionLock) return
+    this.actionLock = true
     const id = Number(event.currentTarget.dataset.id)
     try {
       await skipItem(id)
       await this.loadData()
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '操作失败', icon: 'none' })
+    } finally {
+      this.actionLock = false
     }
   },
 

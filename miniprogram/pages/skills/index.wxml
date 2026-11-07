@@ -24,12 +24,12 @@
         <view class="skill-heading">
           <view class="skill-dot" style="background: {{item.accent}};"></view>
           <text class="skill-name">{{item.name}}</text>
-          <text wx:if="{{!item.active}}" class="paused-label">已暂停</text>
+          <text wx:if="{{!item.active}}" class="paused-label">已停止排期</text>
         </view>
         <view class="skill-actions">
           <button data-id="{{item.id}}" bindtap="editSkill">编辑</button>
-          <button data-id="{{item.id}}" bindtap="toggleActive">{{item.active ? '暂停' : '恢复'}}</button>
-          <button data-id="{{item.id}}" bindtap="removeSkill">删除</button>
+          <button data-id="{{item.id}}" bindtap="toggleActive">{{item.active ? '停止排期' : '恢复排期'}}</button>
+          <button data-id="{{item.id}}" bindtap="removeSkill">移除</button>
         </view>
       </view>
       <text class="skill-description">{{item.description || '还没写下目标，先按这个节奏开始就好。'}}</text>
@@ -39,8 +39,9 @@
         <text>{{item.sessionsPerWeek}} 次/周</text>
         <text>本周 {{item.plannedCount}} 项待完成</text>
       </view>
+      <text wx:if="{{!item.active}}" class="paused-hint">已排好的计划不受影响，仍可照常完成，只是不再排新安排。</text>
       <button class="generate-button" data-id="{{item.id}}" bindtap="generate">
-        {{item.weekItemCount > 0 ? '查看本周计划' : '生成本周计划'}} <text>→</text>
+        {{item.actionLabel}} <text wx:if="{{item.active || item.weekItemCount > 0}}">→</text>
       </button>
     </view>
   </view>

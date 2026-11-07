@@ -12,4 +12,6 @@ public interface StudySessionRepository extends JpaRepository<StudySession, Long
             LocalDate from,
             LocalDate to
     );
+
+    boolean existsByOwnerIdAndItemId(Long ownerId, Long itemId);
 }

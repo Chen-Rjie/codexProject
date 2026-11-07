@@ -23,6 +23,12 @@ $RedisUrl = Read-Host "Enter the full Upstash rediss:// URL"
 $WeChatSecretSecure = Read-Host "Enter the mini program AppSecret" -AsSecureString
 $WeChatSecret = [System.Net.NetworkCredential]::new("", $WeChatSecretSecure).Password
 
+$CorsOrigins = if ($env:CORS_ALLOWED_ORIGINS) {
+    $env:CORS_ALLOWED_ORIGINS
+} else {
+    "http://127.0.0.1:5173,http://localhost:5173"
+}
+
 $EnvParams = [ordered]@{
     DB_HOST = "10.0.0.14"
     DB_PORT = "3306"
@@ -33,7 +39,7 @@ $EnvParams = [ordered]@{
     REDIS_URL = $RedisUrl
     WECHAT_APP_ID = "wx704450feaa66b07e"
     WECHAT_APP_SECRET = $WeChatSecret
-    CORS_ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173"
+    CORS_ALLOWED_ORIGINS = $CorsOrigins
     SESSION_COOKIE_SECURE = "true"
     REGISTRATION_ENABLED = "true"
 } | ConvertTo-Json -Compress

@@ -7,6 +7,7 @@ export interface StudySkill {
   sessionMinutes: number
   sessionsPerWeek: number
   active: boolean
+  archived: boolean
   createdAt: string
 }
 

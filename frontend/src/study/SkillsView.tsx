@@ -91,7 +91,7 @@ export function SkillsView({
                       <button type="button" onClick={() => onEdit(skill)} aria-label={`编辑 ${skill.name}`}>
                         <EditIcon />
                       </button>
-                      <button type="button" onClick={() => onDelete(skill)} aria-label={`删除 ${skill.name}`}>
+                      <button type="button" onClick={() => onDelete(skill)} aria-label={`移除 ${skill.name}`}>
                         <TrashIcon />
                       </button>
                     </div>
@@ -115,10 +115,10 @@ export function SkillsView({
                     className="skill-generate"
                     type="button"
                     onClick={() => onGenerate(skill)}
-                    disabled={busySkillId === skill.id}
+                    disabled={busySkillId === skill.id || !skill.active}
                   >
                     <SparkIcon />
-                    {busySkillId === skill.id ? '正在安排…' : '生成本周计划'}
+                    {busySkillId === skill.id ? '正在安排…' : skill.active ? '生成本周计划' : '已停止排期'}
                     <ArrowIcon />
                   </button>
                 </article>

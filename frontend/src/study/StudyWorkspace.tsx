@@ -164,6 +164,9 @@ export function StudyWorkspace({
     }
   }, [timer, timerStorageKey])
 
+  const activeSkills = skills.filter((skill) => !skill.archived)
+  const schedulableSkills = activeSkills.filter((skill) => skill.active)
+
   function openCreateSkill() {
     setEditingSkill(null)
     setSkillDialogOpen(true)
@@ -175,7 +178,7 @@ export function StudyWorkspace({
   }
 
   function openCreateItem(date = today) {
-    if (skills.length === 0) {
+    if (schedulableSkills.length === 0) {
       openCreateSkill()
       return
     }
@@ -194,7 +197,7 @@ export function StudyWorkspace({
   }
 
   async function removeSkill(skill: StudySkill) {
-    if (!window.confirm(`删除“${skill.name}”会同时删除相关计划，确定继续吗？`)) return
+    if (!window.confirm(`“${skill.name}”会从技能列表移除，已经排好的计划和学习记录都会保留。确定移除吗？`)) return
     setBusySkillId(skill.id)
     try {
       await deleteStudySkill(skill.id)
@@ -207,6 +210,10 @@ export function StudyWorkspace({
   }
 
   async function generatePlan(skill: StudySkill) {
+    if (!skill.active) {
+      setError('这项技能已停止排期，请先恢复排期。')
+      return
+    }
     setBusySkillId(skill.id)
     try {
       const generated = await generateStudyWeek(skill.id, currentWeekStart)
@@ -229,7 +236,7 @@ export function StudyWorkspace({
   async function completeItem(item: StudyItem, minutes = item.plannedMinutes) {
     setBusyItemId(item.id)
     try {
-      await completeStudyItem(item.id, Math.max(1, minutes))
+      await completeStudyItem(item.id, Math.min(600, Math.max(1, minutes)))
       if (timer?.item.id === item.id) setTimer(null)
       await loadData()
     } catch (caught) {
@@ -370,7 +377,7 @@ export function StudyWorkspace({
           </div>
         )}
 
-        {loading && skills.length === 0 ? (
+        {loading && activeSkills.length === 0 ? (
           <div className="study-loading-grid">
             <div />
             <div />
@@ -399,7 +406,7 @@ export function StudyWorkspace({
             )}
             {view === 'skills' && (
               <SkillsView
-                skills={skills}
+                skills={activeSkills}
                 items={currentItems}
                 sessions={weekSessions}
                 busySkillId={busySkillId}
@@ -449,7 +456,7 @@ export function StudyWorkspace({
       <StudyItemDialog
         open={itemDialogOpen}
         date={itemDate}
-        skills={skills}
+        skills={schedulableSkills}
         onClose={() => setItemDialogOpen(false)}
         onSave={saveItem}
       />

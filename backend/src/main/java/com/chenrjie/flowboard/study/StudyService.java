@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -23,6 +24,12 @@ import java.util.Set;
 @Service
 @Transactional
 public class StudyService {
+
+    private static final ZoneId APP_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final long MAX_RANGE_DAYS = 366;
+    private static final int NOTE_LIMIT = 1000;
+    private static final String REFLOW_MARK = "从错过计划自动顺延";
+    private static final int REFLOW_WINDOW_DAYS = 30;
 
     private final StudySkillRepository skills;
     private final StudyItemRepository items;
@@ -53,7 +60,7 @@ public class StudyService {
 
         StudySkill skill = new StudySkill();
         skill.setOwnerId(ownerId);
-        applySkill(skill, request, name);
+        applySkill(skill, request, name, true);
         return SkillResponse.from(skills.save(skill));
     }
 
@@ -64,12 +71,15 @@ public class StudyService {
                 && skills.existsByOwnerIdAndArchivedFalseAndNameIgnoreCase(ownerId, name)) {
             throw new StudyConflictException("已经存在同名技能");
         }
-        applySkill(skill, request, name);
+        applySkill(skill, request, name, false);
         return SkillResponse.from(skills.save(skill));
     }
 
     public void deleteSkill(Long ownerId, Long id) {
         StudySkill skill = ownedSkill(ownerId, id);
+        if (skills.existsByOwnerIdAndArchivedTrueAndNameIgnoreCase(ownerId, skill.getName())) {
+            skill.setName(archivedName(skill.getName(), skill.getId()));
+        }
         skill.setArchived(true);
         skill.setActive(false);
         skills.save(skill);
@@ -85,7 +95,7 @@ public class StudyService {
     }
 
     public ItemResponse createItem(Long ownerId, ItemRequest request) {
-        ownedSkill(ownerId, request.skillId());
+        schedulableSkill(ownerId, request.skillId());
 
         StudyItem item = new StudyItem();
         item.setOwnerId(ownerId);
@@ -99,10 +109,10 @@ public class StudyService {
     }
 
     public List<ItemResponse> generateWeek(Long ownerId, Long skillId, LocalDate requestedWeekStart) {
-        StudySkill skill = ownedSkill(ownerId, skillId);
+        StudySkill skill = schedulableSkill(ownerId, skillId);
         LocalDate weekStart = requestedWeekStart.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate weekEnd = weekStart.plusDays(6);
-        LocalDate today = LocalDate.now();
+        LocalDate today = today();
         if (weekEnd.isBefore(today)) {
             return List.of();
         }
@@ -118,12 +128,14 @@ public class StudyService {
         );
         Set<LocalDate> occupied = new HashSet<>();
         for (StudyItem item : existing) {
-            occupied.add(item.getPlannedDate());
+            LocalDate date = item.getPlannedDate();
+            if (!date.isBefore(scheduleStart) && !date.isAfter(weekEnd)) {
+                occupied.add(date);
+            }
         }
 
         int availableDays = (int) ChronoUnit.DAYS.between(scheduleStart, weekEnd) + 1;
-        int targetCount = Math.min(skill.getSessionsPerWeek(), availableDays);
-        int needed = Math.min(targetCount - existing.size(), availableDays - occupied.size());
+        int needed = skill.getSessionsPerWeek() - existing.size();
         if (needed <= 0) {
             return List.of();
         }
@@ -163,30 +175,35 @@ public class StudyService {
 
     public ItemResponse completeItem(Long ownerId, Long id, CompleteItemRequest request) {
         StudyItem item = ownedItem(ownerId, id);
+        if (item.getPlannedDate().isAfter(today())) {
+            throw new StudyConflictException("还没到计划日期，不能提前完成");
+        }
         if (item.getStatus() != StudyItemStatus.DONE) {
             item.setStatus(StudyItemStatus.DONE);
             item.setCompletedAt(Instant.now());
             items.save(item);
 
-            StudySession session = new StudySession();
-            session.setOwnerId(ownerId);
-            session.setSkillId(item.getSkillId());
-            session.setItemId(item.getId());
-            session.setDurationMinutes(request.durationMinutes());
-            session.setStudiedOn(LocalDate.now());
-            session.setNote(normalize(request.note()));
-            sessions.save(session);
+            if (!sessions.existsByOwnerIdAndItemId(ownerId, item.getId())) {
+                StudySession session = new StudySession();
+                session.setOwnerId(ownerId);
+                session.setSkillId(item.getSkillId());
+                session.setItemId(item.getId());
+                session.setDurationMinutes(request.durationMinutes());
+                session.setStudiedOn(today());
+                session.setNote(normalize(request.note()));
+                sessions.save(session);
+            }
         }
         return ItemResponse.from(item);
     }
 
     public ItemResponse skipItem(Long ownerId, Long id, String reason) {
         StudyItem item = ownedItem(ownerId, id);
+        if (item.getStatus() == StudyItemStatus.DONE) {
+            throw new StudyConflictException("已完成的安排不能改为跳过");
+        }
         item.setStatus(StudyItemStatus.SKIPPED);
         item.setCompletedAt(null);
-        if (reason != null && !reason.isBlank()) {
-            item.setNote(reason.trim());
-        }
         return ItemResponse.from(items.save(item));
     }
 
@@ -195,7 +212,7 @@ public class StudyService {
     }
 
     public int reflowMissedItems(Long ownerId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = today();
         List<StudyItem> overdue = items
                 .findByOwnerIdAndStatusAndPlannedDateBeforeOrderByPlannedDateAscCreatedAtAsc(
                         ownerId,
@@ -204,20 +221,24 @@ public class StudyService {
                 );
         if (overdue.isEmpty()) return 0;
 
+        LocalDate horizon = today.plusDays(REFLOW_WINDOW_DAYS);
         List<StudyItem> upcoming = items.findByOwnerIdAndPlannedDateBetweenOrderByPlannedDateAscCreatedAtAsc(
                 ownerId,
                 today,
-                today.plusDays(14)
+                horizon
         );
         for (StudyItem item : overdue) {
             LocalDate target = today;
-            while (itemsOnDate(upcoming, target) >= 2 && target.isBefore(today.plusDays(14))) {
+            while (itemsOnDate(upcoming, target) >= 2 && target.isBefore(horizon)) {
                 target = target.plusDays(1);
             }
             item.setPlannedDate(target);
-            item.setNote(item.getNote().isBlank()
-                    ? "从错过计划自动顺延"
-                    : item.getNote() + " · 从错过计划自动顺延");
+            String note = item.getNote() == null ? "" : item.getNote();
+            if (!note.contains(REFLOW_MARK)) {
+                String suffix = note.isBlank() ? REFLOW_MARK : " · " + REFLOW_MARK;
+                int keep = Math.max(0, NOTE_LIMIT - suffix.length());
+                item.setNote((note.length() > keep ? note.substring(0, keep) : note) + suffix);
+            }
             StudyItem saved = items.save(item);
             upcoming.add(saved);
         }
@@ -233,19 +254,35 @@ public class StudyService {
                 .toList();
     }
 
-    private void applySkill(StudySkill skill, SkillRequest request, String name) {
+    private void applySkill(StudySkill skill, SkillRequest request, String name, boolean creating) {
         skill.setName(name);
-        skill.setDescription(normalize(request.description()));
-        skill.setAccent(request.accent() == null ? "#DBFF73" : request.accent().toUpperCase(Locale.ROOT));
+        if (creating || request.description() != null) {
+            skill.setDescription(normalize(request.description()));
+        }
+        if (creating || request.accent() != null) {
+            skill.setAccent(request.accent() == null ? "#DBFF73" : request.accent().toUpperCase(Locale.ROOT));
+        }
         skill.setWeeklyMinutes(request.weeklyMinutes());
         skill.setSessionMinutes(request.sessionMinutes());
         skill.setSessionsPerWeek(request.sessionsPerWeek());
-        skill.setActive(request.active() == null || request.active());
+        if (request.active() != null) {
+            skill.setActive(request.active());
+        } else if (creating) {
+            skill.setActive(true);
+        }
     }
 
     private StudySkill ownedSkill(Long ownerId, Long id) {
         return skills.findByIdAndOwnerIdAndArchivedFalse(id, ownerId)
                 .orElseThrow(() -> new StudyNotFoundException("未找到技能：" + id));
+    }
+
+    private StudySkill schedulableSkill(Long ownerId, Long id) {
+        StudySkill skill = ownedSkill(ownerId, id);
+        if (!skill.isActive()) {
+            throw new StudyConflictException("该技能已停止排期，请先恢复排期");
+        }
+        return skill;
     }
 
     private StudyItem ownedItem(Long ownerId, Long id) {
@@ -257,6 +294,19 @@ public class StudyService {
         if (from == null || to == null || to.isBefore(from)) {
             throw new IllegalArgumentException("日期范围无效");
         }
+        if (ChronoUnit.DAYS.between(from, to) > MAX_RANGE_DAYS) {
+            throw new IllegalArgumentException("查询范围不能超过 366 天");
+        }
+    }
+
+    private LocalDate today() {
+        return LocalDate.now(APP_ZONE);
+    }
+
+    private String archivedName(String name, Long id) {
+        String suffix = " · 已移除 " + id;
+        int keep = Math.max(0, 80 - suffix.length());
+        return (name.length() > keep ? name.substring(0, keep) : name) + suffix;
     }
 
     private String normalize(String value) {

@@ -12,4 +12,6 @@ public interface StudySkillRepository extends JpaRepository<StudySkill, Long> {
     Optional<StudySkill> findByIdAndOwnerIdAndArchivedFalse(Long id, Long ownerId);
 
     boolean existsByOwnerIdAndArchivedFalseAndNameIgnoreCase(Long ownerId, String name);
+
+    boolean existsByOwnerIdAndArchivedTrueAndNameIgnoreCase(Long ownerId, String name);
 }

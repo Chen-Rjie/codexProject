@@ -34,6 +34,7 @@ public class AsyncDatabaseBootstrap {
     public AsyncDatabaseBootstrap(DataSource dataSource, DatabaseMigrationStatus status) {
         this.dataSource = dataSource;
         this.status = status;
+        status.markRunning();
     }
 
     @EventListener(ApplicationReadyEvent.class)

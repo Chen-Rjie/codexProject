@@ -8,7 +8,7 @@ import {
   type StudySession,
   type StudySkill,
 } from '../../utils/api'
-import { addDays, monthDay, weekStart, weekday } from '../../utils/date'
+import { addDays, localDate, monthDay, weekStart, weekday } from '../../utils/date'
 import { getSelectedWeek, setSelectedWeek } from '../../utils/weekState'
 
 interface DayBar {
@@ -39,6 +39,8 @@ Page({
     insight: '',
   },
 
+  loadSeq: 0 as number,
+
   onShow() {
     if (!ensureLogin()) return
     this.setData({ selectedWeekStart: getSelectedWeek() })
@@ -50,15 +52,19 @@ Page({
   },
 
   async loadData() {
+    const seq = ++this.loadSeq
     this.setData({ loading: true })
     try {
       const start = this.data.selectedWeekStart
       const end = addDays(start, 6)
+      const today = localDate()
+      const effectiveEnd = end < today ? end : today
       const [skills, items, sessions] = await Promise.all([
         listSkills(),
         listItems(start, end),
-        listSessions(addDays(start, -90), end),
+        listSessions(addDays(start, -90), effectiveEnd),
       ])
+      if (seq !== this.loadSeq) return
       const weeklySessions = sessions.filter(
         (session) => session.studiedOn >= start && session.studiedOn <= end,
       )
@@ -74,7 +80,9 @@ Page({
       })
       const maxMinutes = Math.max(1, ...daily.map((entry) => entry.minutes))
       const doneCount = items.filter((item) => item.status === 'DONE').length
-      const completionRate = items.length ? Math.round((doneCount / items.length) * 100) : 0
+      const rateBase = items.filter((item) => item.status !== 'SKIPPED').length
+      const completionRate = rateBase ? Math.round((doneCount / rateBase) * 100) : 0
+      const isFutureWeek = start > today
       this.setData({
         loading: false,
         weekLabel: `${monthDay(start)} — ${monthDay(end)}`,
@@ -85,8 +93,8 @@ Page({
         activeDays: new Set(weeklySessions.map((session) => session.studiedOn)).size,
         completionRate,
         doneCount,
-        itemCount: items.length,
-        streak: this.calculateStreak(sessions, end),
+        itemCount: rateBase,
+        streak: this.calculateStreak(sessions, effectiveEnd),
         bars: daily.map((entry) => ({
           ...entry,
           height: Math.max(3, Math.round((entry.minutes / maxMinutes) * 100)),
@@ -101,13 +109,16 @@ Page({
             percent: totalMinutes ? Math.round((minutes / totalMinutes) * 100) : 0,
           }
         }).filter((skill) => !skill.archived || skill.minutes > 0),
-        insight: totalMinutes === 0
-          ? '还没有学习记录。下一次只需要打开计时器，专注 15 分钟。'
-          : completionRate < 50
-            ? '计划完成得不多，可能是这一周安排偏满。下次可以主动减少一次安排。'
-            : '你正在形成稳定节奏。继续保持当前预算，不需要急着增加更多任务。',
+        insight: isFutureWeek
+          ? '这一周还没开始，先按排好的节奏留着就好。'
+          : totalMinutes === 0
+            ? '还没有学习记录。下一次只需要打开计时器，专注 15 分钟。'
+            : completionRate < 50
+              ? '计划完成得不多，可能是这一周安排偏满。下次可以主动减少一次安排。'
+              : '你正在形成稳定节奏。继续保持当前预算，不需要急着增加更多任务。',
       })
     } catch (error) {
+      if (seq !== this.loadSeq) return
       this.setData({ loading: false })
       wx.showToast({ title: (error as { message?: string }).message || '加载失败', icon: 'none' })
     }

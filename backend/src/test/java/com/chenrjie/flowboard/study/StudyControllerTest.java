@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class StudyControllerTest {
 
+    private static final ZoneId APP_ZONE = ZoneId.of("Asia/Shanghai");
     private static final AppUserPrincipal OWNER =
             new AppUserPrincipal(11L, "learner", "not-used", "学习者");
     private static final AppUserPrincipal OTHER_USER =
@@ -58,27 +60,33 @@ class StudyControllerTest {
         skills.deleteAll();
     }
 
+    private static LocalDate appToday() {
+        return LocalDate.now(APP_ZONE);
+    }
+
     private static LocalDate nextWeekStart() {
-        return LocalDate.now()
-                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                .plusWeeks(1);
+        return appToday().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).plusWeeks(1);
     }
 
     private long createSkill(String name, int weeklyMinutes, int sessionMinutes, int sessionsPerWeek)
             throws Exception {
+        return createSkillWithBody("""
+                {
+                  "name":"%s",
+                  "description":"每周稳定练习",
+                  "accent":"#DBFF73",
+                  "weeklyMinutes":%d,
+                  "sessionMinutes":%d,
+                  "sessionsPerWeek":%d
+                }
+                """.formatted(name, weeklyMinutes, sessionMinutes, sessionsPerWeek));
+    }
+
+    private long createSkillWithBody(String body) throws Exception {
         String response = mockMvc.perform(post("/api/study/skills")
                         .with(user(OWNER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "name":"%s",
-                                  "description":"每周稳定练习",
-                                  "accent":"#DBFF73",
-                                  "weeklyMinutes":%d,
-                                  "sessionMinutes":%d,
-                                  "sessionsPerWeek":%d
-                                }
-                                """.formatted(name, weeklyMinutes, sessionMinutes, sessionsPerWeek)))
+                        .content(body))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -97,6 +105,51 @@ class StudyControllerTest {
         return objectMapper.readTree(response);
     }
 
+    private long createTodayItem(long skillId, String title, String note) throws Exception {
+        String response = mockMvc.perform(post("/api/study/items")
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "skillId":%d,
+                                  "title":"%s",
+                                  "note":"%s",
+                                  "plannedDate":"%s",
+                                  "plannedMinutes":30
+                                }
+                                """.formatted(skillId, title, note, appToday().toString())))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("id").asLong();
+    }
+
+    private void complete(long itemId, int minutes) throws Exception {
+        mockMvc.perform(post("/api/study/items/{id}/complete", itemId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"durationMinutes":%d,"note":"完成一次练习"}
+                                """.formatted(minutes)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DONE"));
+    }
+
+    private String stopSchedulingBody(String name) {
+        return """
+                {
+                  "name":"%s",
+                  "description":"每周稳定练习",
+                  "accent":"#DBFF73",
+                  "weeklyMinutes":180,
+                  "sessionMinutes":30,
+                  "sessionsPerWeek":3,
+                  "active":false
+                }
+                """.formatted(name);
+    }
+
     @Test
     void createsSkillGeneratesPlanAndRecordsStudy() throws Exception {
         long skillId = createSkill("英语口语", 180, 30, 3);
@@ -105,20 +158,12 @@ class StudyControllerTest {
         assertEquals(3, plan.size());
         assertEquals(nextWeek.toString(), plan.get(0).get("plannedDate").asText());
 
-        long itemId = plan.get(0).get("id").asLong();
-        mockMvc.perform(post("/api/study/items/{id}/complete", itemId)
-                        .with(user(OWNER))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"durationMinutes":35,"note":"完成了一次跟读练习"}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DONE"));
+        complete(createTodayItem(skillId, "今天的练习", ""), 35);
 
         mockMvc.perform(get("/api/study/sessions")
                         .with(user(OWNER))
-                        .param("from", LocalDate.now().minusDays(1).toString())
-                        .param("to", LocalDate.now().plusDays(1).toString()))
+                        .param("from", appToday().minusDays(1).toString())
+                        .param("to", appToday().plusDays(1).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].durationMinutes").value(35));
@@ -156,7 +201,7 @@ class StudyControllerTest {
 
     @Test
     void reflowsMissedItemsToUpcomingDays() throws Exception {
-        LocalDate today = LocalDate.now();
+        LocalDate today = appToday();
         long skillId = createSkill("数据分析", 120, 25, 2);
 
         mockMvc.perform(post("/api/study/items")
@@ -220,16 +265,8 @@ class StudyControllerTest {
     void archivingSkillKeepsFuturePlansAndStudyHistory() throws Exception {
         long skillId = createSkill("英语口语", 180, 30, 3);
         LocalDate nextWeek = nextWeekStart();
-        JsonNode plan = generateFor(skillId, nextWeek);
-        long itemId = plan.get(0).get("id").asLong();
-
-        mockMvc.perform(post("/api/study/items/{id}/complete", itemId)
-                        .with(user(OWNER))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"durationMinutes":30,"note":"完成一次练习"}
-                                """))
-                .andExpect(status().isOk());
+        generateFor(skillId, nextWeek);
+        complete(createTodayItem(skillId, "今天的练习", ""), 30);
 
         long otherSkillId = createSkill("产品设计", 90, 30, 3);
         generateFor(otherSkillId, nextWeek);
@@ -246,8 +283,8 @@ class StudyControllerTest {
 
         mockMvc.perform(get("/api/study/sessions")
                         .with(user(OWNER))
-                        .param("from", LocalDate.now().minusDays(1).toString())
-                        .param("to", LocalDate.now().plusDays(1).toString()))
+                        .param("from", appToday().minusDays(1).toString())
+                        .param("to", appToday().plusDays(1).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
 
@@ -275,8 +312,7 @@ class StudyControllerTest {
                                 """.formatted(skillId, nextWeek.toString())))
                 .andExpect(status().isCreated());
 
-        JsonNode created = generateFor(skillId, nextWeek);
-        assertEquals(2, created.size());
+        assertEquals(2, generateFor(skillId, nextWeek).size());
 
         mockMvc.perform(get("/api/study/items")
                         .with(user(OWNER))
@@ -284,5 +320,161 @@ class StudyControllerTest {
                         .param("to", nextWeek.plusDays(6).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(3)));
+    }
+
+    @Test
+    void stoppedSkillRejectsNewPlans() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        mockMvc.perform(put("/api/study/skills/{id}", skillId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stopSchedulingBody("英语口语")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/study/skills/{id}/generate-plan", skillId)
+                        .with(user(OWNER))
+                        .param("weekStart", nextWeekStart().toString()))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post("/api/study/items")
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "skillId":%d,
+                                  "title":"手工添加",
+                                  "note":"",
+                                  "plannedDate":"%s",
+                                  "plannedMinutes":30
+                                }
+                                """.formatted(skillId, nextWeekStart().toString())))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void updateWithoutActiveKeepsStoppedState() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        mockMvc.perform(put("/api/study/skills/{id}", skillId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stopSchedulingBody("英语口语")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/study/skills/{id}", skillId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name":"英语口语",
+                                  "description":"改个说明",
+                                  "accent":"#8EA7FF",
+                                  "weeklyMinutes":180,
+                                  "sessionMinutes":30,
+                                  "sessionsPerWeek":3
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/study/skills").with(user(OWNER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].active").value(false));
+    }
+
+    @Test
+    void futurePlansCannotBeCompletedEarly() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        JsonNode plan = generateFor(skillId, nextWeekStart());
+
+        mockMvc.perform(post("/api/study/items/{id}/complete", plan.get(0).get("id").asLong())
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"durationMinutes":30,"note":"提前完成"}
+                                """))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void completingTwiceProducesOnlyOneSession() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        long itemId = createTodayItem(skillId, "今天的练习", "");
+        complete(itemId, 30);
+        complete(itemId, 30);
+
+        mockMvc.perform(get("/api/study/sessions")
+                        .with(user(OWNER))
+                        .param("from", appToday().minusDays(1).toString())
+                        .param("to", appToday().plusDays(1).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void skipKeepsOriginalNoteAndCannotUndoCompletion() throws Exception {
+        long skillId = createSkill("英语口语", 180, 30, 3);
+        long skippedId = createTodayItem(skillId, "要跳过的练习", "第 3 章教材");
+
+        mockMvc.perform(post("/api/study/items/{id}/skip", skippedId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason":"这周先留一点空间"}
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/study/items")
+                        .with(user(OWNER))
+                        .param("from", appToday().toString())
+                        .param("to", appToday().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].note").value("第 3 章教材"));
+
+        long doneId = createTodayItem(skillId, "已完成的练习", "");
+        complete(doneId, 30);
+        mockMvc.perform(post("/api/study/items/{id}/skip", doneId)
+                        .with(user(OWNER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason":"误操作"}
+                                """))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void archivingSameSkillNameTwiceSucceeds() throws Exception {
+        long first = createSkill("英语口语", 180, 30, 3);
+        mockMvc.perform(delete("/api/study/skills/{id}", first).with(user(OWNER)))
+                .andExpect(status().isNoContent());
+
+        long second = createSkillWithBody("""
+                {
+                  "name":"英语口语",
+                  "description":"重新开始",
+                  "accent":"#DBFF73",
+                  "weeklyMinutes":180,
+                  "sessionMinutes":30,
+                  "sessionsPerWeek":3
+                }
+                """);
+        mockMvc.perform(delete("/api/study/skills/{id}", second).with(user(OWNER)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/study/skills")
+                        .with(user(OWNER))
+                        .param("unused", "value"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+    }
+
+    @Test
+    void missingOrOversizedQueryParametersAreRejected() throws Exception {
+        mockMvc.perform(get("/api/study/items").with(user(OWNER)))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/study/items")
+                        .with(user(OWNER))
+                        .param("from", "2020-01-01")
+                        .param("to", "2030-01-01"))
+                .andExpect(status().isBadRequest());
     }
 }

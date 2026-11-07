@@ -22,6 +22,7 @@ interface SkillView extends StudySkill {
   plannedCount: number
   weekItemCount: number
   budget: number
+  actionLabel: string
 }
 
 Page({
@@ -32,6 +33,7 @@ Page({
     totalDone: 0,
     dialogOpen: false,
     editingId: null as number | null,
+    editingActive: true,
     saving: false,
     name: '',
     description: '',
@@ -44,6 +46,9 @@ Page({
     computedBudget: 90,
   },
 
+  loadSeq: 0 as number,
+  actionLock: false,
+
   onShow() {
     if (!ensureLogin()) return
     void this.loadData()
@@ -54,6 +59,7 @@ Page({
   },
 
   async loadData() {
+    const seq = ++this.loadSeq
     this.setData({ loading: true })
     try {
       const start = weekStart()
@@ -62,6 +68,7 @@ Page({
         listItems(start, addDays(start, 6)),
         listSessions(),
       ])
+      if (seq !== this.loadSeq) return
       const weekSessions = sessions.filter(
         (session) => session.studiedOn >= start && session.studiedOn <= addDays(start, 6),
       )
@@ -72,13 +79,17 @@ Page({
         const minutes = weekSessions
           .filter((session) => session.skillId === skill.id)
           .reduce((sum, session) => sum + session.durationMinutes, 0)
+        const weekItemCount = skillItems.length
         return {
           ...skill,
           minutes,
           budget,
           percent: Math.min(100, Math.round((minutes / budget) * 100)),
           plannedCount: skillItems.filter((item) => item.status === 'PLANNED').length,
-          weekItemCount: skillItems.length,
+          weekItemCount,
+          actionLabel: weekItemCount > 0
+            ? '查看本周计划'
+            : skill.active ? '生成本周计划' : '已停止排期',
         }
       })
       this.setData({
@@ -88,6 +99,7 @@ Page({
         totalDone: weekSessions.reduce((sum, session) => sum + session.durationMinutes, 0),
       })
     } catch (error) {
+      if (seq !== this.loadSeq) return
       this.setData({ loading: false })
       wx.showToast({ title: (error as { message?: string }).message || '加载失败', icon: 'none' })
     }
@@ -101,6 +113,7 @@ Page({
     this.setData({
       dialogOpen: true,
       editingId: null,
+      editingActive: true,
       name: '',
       description: '',
       accent: '#DBFF73',
@@ -132,17 +145,23 @@ Page({
     const id = Number(event.currentTarget.dataset.id)
     const skill = this.data.skills.find((entry) => entry.id === id)
     if (!skill) return
-    const sessionIndex = Math.max(0, this.data.sessionOptions.indexOf(skill.sessionMinutes))
-    const countIndex = Math.max(0, this.data.countOptions.indexOf(skill.sessionsPerWeek))
+    const rawSessionIndex = this.data.sessionOptions.indexOf(skill.sessionMinutes)
+    const rawCountIndex = this.data.countOptions.indexOf(skill.sessionsPerWeek)
+    if (rawSessionIndex < 0 || rawCountIndex < 0) {
+      wx.showToast({ title: '当前节奏不在可选范围，保存时会按所选值更新', icon: 'none' })
+    }
+    const sessionIndex = Math.max(0, rawSessionIndex)
+    const countIndex = Math.max(0, rawCountIndex)
     this.setData({
       dialogOpen: true,
       editingId: skill.id,
+      editingActive: skill.active,
       name: skill.name,
       description: skill.description,
       accent: skill.accent,
       sessionIndex,
       countIndex,
-      computedBudget: skill.budget,
+      computedBudget: this.derivedBudget(sessionIndex, countIndex),
     })
   },
 
@@ -178,7 +197,7 @@ Page({
         weeklyMinutes: Math.max(MIN_WEEKLY_MINUTES, this.data.computedBudget),
         sessionMinutes: this.data.sessionOptions[this.data.sessionIndex],
         sessionsPerWeek: this.data.countOptions[this.data.countIndex],
-        active: true,
+        active: isNew ? true : this.data.editingActive,
       }
       if (this.data.editingId) {
         await updateSkill(this.data.editingId, input)
@@ -203,6 +222,7 @@ Page({
   },
 
   async generate(event: WechatMiniprogram.BaseEvent) {
+    if (this.actionLock) return
     const id = Number(event.currentTarget.dataset.id)
     const skill = this.data.skills.find((entry) => entry.id === id)
     if (!skill) return
@@ -210,6 +230,11 @@ Page({
       wx.switchTab({ url: '/pages/plan/index' })
       return
     }
+    if (!skill.active) {
+      wx.showToast({ title: '已停止排期，请先恢复', icon: 'none' })
+      return
+    }
+    this.actionLock = true
     try {
       const created = await generatePlan(id)
       await this.loadData()
@@ -220,48 +245,60 @@ Page({
       }
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '生成失败', icon: 'none' })
+    } finally {
+      this.actionLock = false
     }
   },
 
   async toggleActive(event: WechatMiniprogram.BaseEvent) {
+    if (this.actionLock) return
     const id = Number(event.currentTarget.dataset.id)
     const skill = this.data.skills.find((entry) => entry.id === id)
     if (!skill) return
+    const nextActive = !skill.active
+    this.actionLock = true
     try {
       await updateSkill(id, {
         name: skill.name,
         description: skill.description,
         accent: skill.accent,
-        weeklyMinutes: Math.max(MIN_WEEKLY_MINUTES, skill.budget),
+        weeklyMinutes: skill.weeklyMinutes,
         sessionMinutes: skill.sessionMinutes,
         sessionsPerWeek: skill.sessionsPerWeek,
-        active: !skill.active,
+        active: nextActive,
       })
       await this.loadData()
+      wx.showToast({ title: nextActive ? '已恢复排期' : '已停止排期', icon: 'none' })
     } catch (error) {
       wx.showToast({ title: (error as { message?: string }).message || '更新失败', icon: 'none' })
+    } finally {
+      this.actionLock = false
     }
   },
 
   async removeSkill(event: WechatMiniprogram.BaseEvent) {
+    if (this.actionLock) return
     const id = Number(event.currentTarget.dataset.id)
     const skill = this.data.skills.find((entry) => entry.id === id)
     if (!skill) return
-    const result = await new Promise<WechatMiniprogram.ShowModalSuccessCallbackResult>(
-      (resolve) =>       wx.showModal({
-        title: '移除技能',
-        content: `“${skill.name}”会从技能列表移除，已经排好的计划和学习记录都会保留。`,
-        confirmText: '移除',
-        success: resolve,
-      }),
-    )
-    if (!result.confirm) return
+    this.actionLock = true
     try {
+      const result = await new Promise<WechatMiniprogram.ShowModalSuccessCallbackResult>(
+        (resolve) => wx.showModal({
+          title: '移除技能',
+          content: `“${skill.name}”会从技能列表移除，已经排好的计划和学习记录都会保留。`,
+          confirmText: '移除',
+          success: resolve,
+        }),
+      )
+      if (!result.confirm) return
       await deleteSkill(id)
       await this.loadData()
       wx.showToast({ title: '已从列表移除', icon: 'none' })
     } catch (error) {
-      wx.showToast({ title: (error as { message?: string }).message || '删除失败', icon: 'none' })
+      wx.showToast({ title: (error as { message?: string }).message || '移除失败', icon: 'none' })
+    } finally {
+      this.actionLock = false
     }
   },
 })

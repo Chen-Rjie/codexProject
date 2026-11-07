@@ -9,3 +9,7 @@ export function getSelectedWeek(): string {
 export function setSelectedWeek(value: string) {
   selectedWeekStart = value
 }
+
+export function resetSelectedWeek() {
+  selectedWeekStart = weekStart()
+}
