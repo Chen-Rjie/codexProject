@@ -15,11 +15,11 @@
     <view class="empty-mark">+</view>
     <text class="empty-title">先从一项真正想学的技能开始</text>
     <text class="empty-copy">设定每周时间预算，系统会拆成可以完成的小步。</text>
-    <button class="primary-button accent-button empty-action" bindtap="goSkills">添加第一项技能</button>
+    <button class="primary-button accent-button empty-action" bindtap="goSkills">去添加第一项技能</button>
   </view>
 
   <block wx:else>
-    <view class="progress-card card">
+    <view wx:if="{{hasTodayData}}" class="progress-card card">
       <view class="progress-ring" style="background: conic-gradient(#b9e33e {{progress * 3.6}}deg, #e8e5dc 0);">
         <view><text>{{progress}}%</text><text class="progress-caption">今日完成</text></view>
       </view>
@@ -30,7 +30,7 @@
       </view>
     </view>
 
-    <view class="streak-card">
+    <view wx:if="{{hasTodayData}}" class="streak-card">
       <text class="streak-value">{{streak}}</text>
       <view>
         <text>连续学习天数</text>

@@ -38,6 +38,7 @@ function timerLabel(seconds: number): string {
 Page({
   data: {
     loading: true,
+    hasTodayData: false,
     user: null as AuthUser | null,
     today: localDate(),
     dateLabel: '',
@@ -208,6 +209,7 @@ Page({
         .reduce((sum, session) => sum + session.durationMinutes, 0)
       this.setData({
         loading: false,
+        hasTodayData: todayItems.length > 0 || doneMinutes > 0,
         today,
         skills,
         todayItems,
