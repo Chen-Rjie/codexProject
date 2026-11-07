@@ -369,6 +369,7 @@
 }
 
 .agenda-rail {
+  grid-row: 1 / -1;
   align-self: stretch;
   width: 6rpx;
   border-radius: 0 6rpx 6rpx 0;
@@ -400,6 +401,7 @@
 .agenda-actions {
   display: flex;
   grid-column: 2;
+  min-width: 0;
   gap: 10rpx;
   padding-top: 13rpx;
   border-top: 1rpx dashed #e4e0d7;
@@ -412,10 +414,16 @@
   justify-content: center;
   min-width: 0;
   min-height: 60rpx;
+  margin: 0;
   padding: 0 8rpx;
   font-size: 21rpx;
   line-height: 1.2;
+  white-space: nowrap;
   border-radius: 12rpx;
+}
+
+.agenda-actions button::after {
+  border: none;
 }
 
 .agenda-done {
