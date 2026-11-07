@@ -11,7 +11,7 @@
 
   <view class="login-panel">
     <text class="login-title">开始你的学习计划</text>
-    <text class="login-hint">微信登录会在后端安全换取 openid，不会在小程序中保存 AppSecret。</text>
+    <text class="login-hint">微信登录由云托管网关安全注入身份，无需在小程序中保存 AppSecret。</text>
 
     <button class="wechat-button" loading="{{busy}}" bindtap="wechatLogin">
       微信一键登录

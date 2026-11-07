@@ -1,0 +1,23 @@
+<view class="profile-page">
+  <view class="profile-hero">
+    <text class="profile-kicker">轻学计划</text>
+    <text class="profile-title">给自己起个名字</text>
+    <text class="profile-hint">首次登录，设置一个昵称方便辨认。微信会在键盘上方推荐你的昵称，也可以自己输入。</text>
+  </view>
+
+  <view class="profile-card">
+    <text class="field-label">昵称</text>
+    <input
+      class="nickname-input"
+      type="nickname"
+      placeholder="点击填写昵称"
+      maxlength="20"
+      value="{{nickname}}"
+      bindinput="onInput"
+      bindblur="onBlur"
+    />
+    <text wx:if="{{error}}" class="error-text">{{error}}</text>
+    <button class="save-button" loading="{{busy}}" bindtap="save">保存并继续</button>
+    <button class="skip-button" bindtap="skip">稍后再说</button>
+  </view>
+</view>

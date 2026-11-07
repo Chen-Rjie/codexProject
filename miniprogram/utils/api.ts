@@ -202,6 +202,18 @@ export async function loginWithWeChat(): Promise<AuthUser> {
   return tokens.user
 }
 
+export async function updateDisplayName(displayName: string): Promise<AuthUser> {
+  const user = await request<AuthUser>({
+    path: '/auth/me',
+    method: 'PUT',
+    data: { displayName },
+  })
+  wx.setStorageSync(USER_KEY, user)
+  const app = getApp<{ globalData: { user: AuthUser | null } }>()
+  app.globalData.user = user
+  return user
+}
+
 export async function loginWithPassword(username: string, password: string): Promise<AuthUser> {
   const tokens = await rawRequest<TokenResponse>({
     path: '/auth/token/login',
@@ -306,27 +318,6 @@ export function skipItem(id: number) {
 
 export function reflowItems() {
   return request<{ movedItems: number }>({ path: '/study/items/reflow', method: 'POST' })
-}
-
-export async function bindWeChat(): Promise<AuthUser> {
-  let data: { code?: string } = {}
-  if (!USE_CLOUD_CONTAINER) {
-    const loginResult = await new Promise<WechatMiniprogram.LoginSuccessCallbackResult>(
-      (resolve, reject) => {
-        wx.login({ success: resolve, fail: reject })
-      },
-    )
-    data = { code: loginResult.code }
-  }
-  const user = await request<AuthUser>({
-    path: '/auth/wechat/bind',
-    method: 'POST',
-    data,
-  })
-  wx.setStorageSync(USER_KEY, user)
-  const app = getApp<{ globalData: { user: AuthUser | null } }>()
-  app.globalData.user = user
-  return user
 }
 
 export function listSessions() {

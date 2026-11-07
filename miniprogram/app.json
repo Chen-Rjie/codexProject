@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/login/index",
+    "pages/profile/index",
     "pages/today/index",
     "pages/skills/index",
     "pages/plan/index",

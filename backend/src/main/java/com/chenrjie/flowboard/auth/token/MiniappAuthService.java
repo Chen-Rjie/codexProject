@@ -4,7 +4,6 @@ import com.chenrjie.flowboard.auth.AuthDtos.LoginRequest;
 import com.chenrjie.flowboard.auth.AuthDtos.RegisterRequest;
 import com.chenrjie.flowboard.auth.AuthService;
 import com.chenrjie.flowboard.auth.token.TokenAuthDtos.TokenResponse;
-import com.chenrjie.flowboard.auth.wechat.WeChatAlreadyBoundException;
 import com.chenrjie.flowboard.auth.wechat.WeChatMiniappClient;
 import com.chenrjie.flowboard.security.AppUserPrincipal;
 import com.chenrjie.flowboard.user.AppUser;
@@ -79,22 +78,10 @@ public class MiniappAuthService {
         tokenService.revoke(accessToken, refreshToken);
     }
 
-    public TokenAuthDtos.TokenUser bindWeChat(Long userId, String code) {
-        WeChatMiniappClient.WeChatSession session = weChatClient.exchangeCode(code);
-        return bindWeChatIdentity(userId, session.openId(), session.unionId());
-    }
-
-    public TokenAuthDtos.TokenUser bindWeChatIdentity(Long userId, String openId, String unionId) {
-        AppUser current = users.findById(userId).orElseThrow();
-        AppUser existing = users.findByWechatOpenId(openId).orElse(null);
-        if (existing != null && !existing.getId().equals(userId)) {
-            throw new WeChatAlreadyBoundException();
-        }
-        current.setWechatOpenId(openId);
-        if (unionId != null) {
-            current.setWechatUnionId(unionId);
-        }
-        return TokenAuthDtos.TokenUser.from(users.save(current));
+    public TokenAuthDtos.TokenUser updateDisplayName(Long userId, String displayName) {
+        AppUser user = users.findById(userId).orElseThrow();
+        user.setDisplayName(displayName.trim());
+        return TokenAuthDtos.TokenUser.from(users.save(user));
     }
 
     private AppUser createWeChatUser(String openId, String unionId) {

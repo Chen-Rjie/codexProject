@@ -4,7 +4,6 @@ import com.chenrjie.flowboard.auth.DuplicateUsernameException;
 import com.chenrjie.flowboard.auth.RegistrationDisabledException;
 import com.chenrjie.flowboard.auth.token.InvalidTokenException;
 import com.chenrjie.flowboard.auth.wechat.WeChatAuthenticationException;
-import com.chenrjie.flowboard.auth.wechat.WeChatAlreadyBoundException;
 import com.chenrjie.flowboard.auth.wechat.WeChatUnavailableException;
 import com.chenrjie.flowboard.study.StudyConflictException;
 import com.chenrjie.flowboard.study.StudyNotFoundException;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import javax.net.ssl.SSLHandshakeException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -64,12 +62,6 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleWeChatAuthentication(WeChatAuthenticationException exception) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(errorBody(HttpStatus.UNAUTHORIZED, exception.getMessage()));
-    }
-
-    @ExceptionHandler(WeChatAlreadyBoundException.class)
-    public ResponseEntity<Map<String, Object>> handleWeChatBindConflict(WeChatAlreadyBoundException exception) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(errorBody(HttpStatus.CONFLICT, exception.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -116,22 +108,8 @@ public class ApiExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception exception) {
         log.error("Unhandled API exception", exception);
-        Map<String, Object> body = errorBody(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "服务器处理请求时发生错误"
-        );
-        body.put("exceptionType", exception.getClass().getSimpleName());
-        if (exception.getCause() != null) {
-            body.put("causeType", exception.getCause().getClass().getSimpleName());
-        }
-        Throwable rootCause = exception;
-        while (rootCause.getCause() != null) {
-            rootCause = rootCause.getCause();
-        }
-        if (rootCause instanceof SSLHandshakeException) {
-            body.put("sslHandshakeError", rootCause.getMessage());
-        }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(errorBody(HttpStatus.INTERNAL_SERVER_ERROR, "服务器处理请求时发生错误"));
     }
 
     private Map<String, Object> errorBody(HttpStatus status, String message) {
@@ -143,4 +121,3 @@ public class ApiExceptionHandler {
         return body;
     }
 }
-

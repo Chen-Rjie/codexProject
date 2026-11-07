@@ -1,7 +1,6 @@
 import type { AuthUser } from '../../app'
 import {
   completeItem,
-  bindWeChat as bindWeChatIdentity,
   ensureLogin,
   getStoredUser,
   listItems,
@@ -67,6 +66,7 @@ Page({
 
   onShow() {
     if (!ensureLogin()) return
+    this.setData({ user: getStoredUser() })
     this.restoreTimer()
     void this.loadData()
   },
@@ -274,16 +274,5 @@ Page({
     await logout()
   },
 
-  async bindWeChat() {
-    try {
-      await bindWeChatIdentity()
-      wx.showToast({ title: '微信已绑定', icon: 'success' })
-    } catch (error) {
-      wx.showToast({
-        title: (error as { message?: string }).message || '绑定失败',
-        icon: 'none',
-      })
-    }
-  },
 })
 

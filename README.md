@@ -178,10 +178,11 @@ VITE_API_URL=https://api.example.com/api npm run build:web
 
 1. 在微信公众平台注册小程序并取得 AppID
 2. 将 AppID 写入 `miniprogram/project.config.json`
-3. 在后端环境变量中配置 `WECHAT_APP_ID`、`WECHAT_APP_SECRET`
-4. 将 [config.ts](miniprogram/config.ts) 的 `API_BASE_URL` 改成已备案的 HTTPS 域名
-5. 在微信公众平台配置 request 合法域名
-6. 使用微信开发者工具导入 `miniprogram/` 目录
+3. 在微信云托管创建环境与服务（生产服务 `flowboard-api`，端口 `4000`）
+4. 在 `miniprogram/config.ts` 配置 `CLOUD_ENV_ID` 和 `CLOUD_SERVICE_NAME`，保持 `USE_CLOUD_CONTAINER = true`
+5. 使用微信开发者工具导入 `miniprogram/` 目录
+
+云托管模式下 `callContainer` 由网关注入 `X-WX-OPENID`，无需 request 合法域名、无需备案域名，也不需要 `WECHAT_APP_SECRET` 换取 `code`。只有本地 `USE_CLOUD_CONTAINER = false` 时才走 `wx.request` + `API_BASE_URL` + `WECHAT_APP_SECRET`。
 
 本地未安装微信开发者工具时，可以先执行：
 
@@ -189,37 +190,31 @@ VITE_API_URL=https://api.example.com/api npm run build:web
 npm run typecheck:miniprogram
 ```
 
-当前 `project.config.json` 已写入开发 AppID。正式提审前必须关闭 `ENABLE_PASSWORD_LOGIN`，并配置生产 `WECHAT_APP_SECRET`。
+`ENABLE_PASSWORD_LOGIN` 已跟随 `USE_CLOUD_CONTAINER` 自动取反：云托管模式关闭账号密码登录入口，本地模式自动开启供联调。
 
-### 无域名生产模式
+### 云托管生产模式
 
-小程序生产环境使用微信云托管时，不需要单独申请 API 域名：
+小程序生产环境使用微信云托管，不需要单独申请 API 域名：
 
-1. 使用仓库根目录 `Dockerfile` 构建并推送镜像
+1. 使用仓库根目录 `Dockerfile` 构建并推送镜像；镜像已内置 `SPRING_PROFILES_ACTIVE=cloud`
 2. 在微信云托管创建 `flowboard-api` 服务，端口设置为 `4000`
-3. 为服务配置腾讯云 MySQL、Redis 的私网地址
-4. 使用仓库根目录 `Dockerfile` 构建；镜像已内置 `SPRING_PROFILES_ACTIVE=cloud`
-5. 将 `miniprogram/config.ts` 中的 `USE_CLOUD_CONTAINER` 改为 `true`
-6. 配置 `CLOUD_ENV_ID` 和 `CLOUD_SERVICE_NAME`
-7. 小程序端由 `wx.request` 自动切换为 `wx.cloud.callContainer`
+3. 为服务配置腾讯云 MySQL、Redis 的私网地址（生产 `REDIS_URL` 需为 `rediss://`）
+4. 保持 `USE_CLOUD_CONTAINER = true`，配置 `CLOUD_ENV_ID` 和 `CLOUD_SERVICE_NAME`
+5. 小程序端由 `wx.request` 切换为 `wx.cloud.callContainer`
+6. 生产环境在「服务设置」中关闭公网访问，只保留 `callContainer`，避免外部伪造 `X-WX-OPENID`
 
 `cloud` Profile 会先启动 4000 端口，再在后台执行 Flyway 迁移，避免 Serverless MySQL 冷启动期间被 Readiness/Liveness 检查误杀。若云平台显式设置 `SPRING_PROFILES_ACTIVE`，该值会覆盖镜像默认值，因此应保持为 `cloud` 或留空。
 
-本地 Web 端通过 SSH 隧道访问腾讯云后端，不开放公网 API：
+首次微信登录会自动建号（默认昵称「微信用户」），随后引导用户填写昵称，通过 `PUT /api/auth/me` 持久化。
 
-```powershell
-powershell -File scripts/ssh-tunnel.ps1 `
-  -SshHost 腾讯云服务器IP `
-  -SshUser ubuntu
-```
-
-隧道建立后，本地 Web 继续访问 `http://127.0.0.1:4000`。React 管理端现已使用 Bearer Token，不再依赖跨域 Cookie。生产服务器建议只允许后端访问 MySQL/Redis 私网地址。
+`scripts/ssh-tunnel.ps1` 属于旧 CVM 架构，用于本地 Web 通过 SSH 隧道访问当时没有公网入口的后端；云托管没有 SSH 宿主机，该链路已不可用。现在本地 Web 仅用于开发：`http://127.0.0.1:5173` → Vite 代理 → 本地 `127.0.0.1:4000` → 本地 MySQL/Redis。React 管理端使用 Bearer Token，不依赖跨域 Cookie。
 
 小程序认证接口：
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `POST` | `/api/auth/wechat/login` | 使用微信 `code` 登录 |
-| `POST` | `/api/auth/token/login` | 开发环境账号密码换取 Token |
+| `POST` | `/api/auth/wechat/login` | 云托管模式读网关注入的 `X-WX-OPENID`（本地模式用 `code`）；首次登录自动建号 |
+| `PUT` | `/api/auth/me` | 更新当前用户昵称 |
+| `POST` | `/api/auth/token/login` | 本地联调环境账号密码换取 Token |
 | `POST` | `/api/auth/token/refresh` | 轮换 Access/Refresh Token |
 | `POST` | `/api/auth/token/logout` | 撤销当前 Token |

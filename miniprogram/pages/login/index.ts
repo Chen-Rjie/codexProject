@@ -1,4 +1,6 @@
 import { ENABLE_PASSWORD_LOGIN } from '../../config'
+
+const DEFAULT_WECHAT_DISPLAY_NAME = '微信用户'
 import {
   clearSession,
   hasSession,
@@ -33,8 +35,12 @@ Page({
     if (this.data.busy) return
     this.setData({ busy: true, error: '' })
     try {
-      await loginWithWeChat()
-      wx.switchTab({ url: '/pages/today/index' })
+      const user = await loginWithWeChat()
+      if (user.displayName === DEFAULT_WECHAT_DISPLAY_NAME) {
+        wx.redirectTo({ url: '/pages/profile/index' })
+      } else {
+        wx.switchTab({ url: '/pages/today/index' })
+      }
     } catch (error) {
       const failure = error as { message?: string }
       this.setData({

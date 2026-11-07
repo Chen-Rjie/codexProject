@@ -2,6 +2,7 @@ package com.chenrjie.flowboard.auth.token;
 
 import com.chenrjie.flowboard.user.AppUser;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public final class TokenAuthDtos {
 
@@ -10,6 +11,13 @@ public final class TokenAuthDtos {
 
     public record WeChatLoginRequest(
             String code
+    ) {
+    }
+
+    public record UpdateProfileRequest(
+            @NotBlank(message = "昵称不能为空")
+            @Size(max = 80, message = "昵称最多 80 个字符")
+            String displayName
     ) {
     }
 
