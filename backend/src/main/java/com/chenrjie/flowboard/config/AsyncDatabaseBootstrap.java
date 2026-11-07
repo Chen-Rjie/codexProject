@@ -25,7 +25,9 @@ public class AsyncDatabaseBootstrap {
 
     private static final Logger log = LoggerFactory.getLogger(AsyncDatabaseBootstrap.class);
     private static final String MIGRATION_LOCK = "flowboard-flyway-migrate";
-    private static final int LOCK_TIMEOUT_SECONDS = 60;
+    private static final int LOCK_TIMEOUT_SECONDS = 15;
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MS = 5000L;
 
     private final DataSource dataSource;
     private final DatabaseMigrationStatus status;
@@ -43,18 +45,38 @@ public class AsyncDatabaseBootstrap {
             log.warn("Async database initialization already started; ignoring duplicate event");
             return;
         }
-        status.markRunning();
         Thread.ofPlatform()
                 .name("database-bootstrap")
                 .daemon(true)
-                .start(this::migrateWithLock);
+                .start(this::migrateWithRetry);
     }
 
-    private void migrateWithLock() {
+    private void migrateWithRetry() {
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            status.markRunning();
+            if (runMigration()) {
+                return;
+            }
+            if (attempt < MAX_ATTEMPTS) {
+                log.warn("Async database initialization attempt {} failed; retrying in {} ms", attempt, RETRY_DELAY_MS);
+                try {
+                    Thread.sleep(RETRY_DELAY_MS);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        status.markFailed();
+        log.error("Async database initialization failed after {} attempts", MAX_ATTEMPTS);
+    }
+
+    private boolean runMigration() {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             if (!acquireLock(statement)) {
-                throw new IllegalStateException("Timed out waiting for database migration lock");
+                log.warn("Timed out waiting for database migration lock");
+                return false;
             }
             try {
                 int applied = Flyway.configure()
@@ -66,12 +88,13 @@ public class AsyncDatabaseBootstrap {
                         .migrationsExecuted;
                 status.markReady(applied);
                 log.info("Async database initialization completed; migrations executed: {}", applied);
+                return true;
             } finally {
                 releaseLock(statement);
             }
         } catch (Exception exception) {
-            status.markFailed();
-            log.error("Async database initialization failed", exception);
+            log.error("Async database initialization attempt failed", exception);
+            return false;
         }
     }
 

@@ -27,11 +27,15 @@ public class MigrationReadinessFilter extends OncePerRequestFilter {
             FilterChain chain
     ) throws ServletException, IOException {
         if (request.getRequestURI().startsWith("/api/study/") && !status.isReady()) {
+            boolean failed = status.getState() == DatabaseMigrationStatus.State.FAILED;
+            String message = failed
+                    ? "数据库初始化失败，请查看服务日志或重新部署服务"
+                    : "数据库迁移进行中，请稍后重试";
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             response.setHeader("Retry-After", "2");
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write(
-                    "{\"status\":503,\"error\":\"Service Unavailable\",\"message\":\"数据库迁移进行中，请稍后重试\"}"
+                    "{\"status\":503,\"error\":\"Service Unavailable\",\"message\":\"" + message + "\"}"
             );
             return;
         }
