@@ -74,6 +74,7 @@ function saveTokens(tokens: TokenResponse) {
   wx.setStorageSync(USER_KEY, tokens.user)
   const app = getApp<{ globalData: { user: AuthUser | null } }>()
   app.globalData.user = tokens.user
+  redirectingToLogin = false
 }
 
 export function getStoredUser(): AuthUser | null {
@@ -162,7 +163,10 @@ let redirectingToLogin = false
 
 async function doRefreshSession(): Promise<boolean> {
   const refreshToken = wx.getStorageSync<string>(REFRESH_KEY)
-  if (!refreshToken) return false
+  if (!refreshToken) {
+    clearSession()
+    return false
+  }
   try {
     const tokens = await rawRequest<TokenResponse>({
       path: '/auth/token/refresh',
@@ -174,7 +178,7 @@ async function doRefreshSession(): Promise<boolean> {
     return true
   } catch (error) {
     const status = (error as { status?: number }).status
-    if (status === 401 || status === 400) {
+    if (status === 400 || status === 401 || status === 403) {
       clearSession()
     }
     return false
@@ -183,9 +187,16 @@ async function doRefreshSession(): Promise<boolean> {
 
 function refreshSession(): Promise<boolean> {
   if (!inflightRefresh) {
-    inflightRefresh = doRefreshSession().finally(() => {
-      inflightRefresh = null
-    })
+    inflightRefresh = doRefreshSession().then(
+      (ok) => {
+        inflightRefresh = null
+        return ok
+      },
+      (error) => {
+        inflightRefresh = null
+        throw error
+      },
+    )
   }
   return inflightRefresh
 }
@@ -193,7 +204,10 @@ function refreshSession(): Promise<boolean> {
 function goToLogin() {
   if (redirectingToLogin) return
   redirectingToLogin = true
-  wx.reLaunch({ url: '/pages/login/index', complete: () => { redirectingToLogin = false } })
+  wx.reLaunch({
+    url: '/pages/login/index',
+    fail: () => { redirectingToLogin = false },
+  })
 }
 
 export async function request<T>(options: RequestOptions): Promise<T> {
@@ -203,9 +217,24 @@ export async function request<T>(options: RequestOptions): Promise<T> {
     const failure = error as { status?: number }
     if (failure.status === 401 && options.auth !== false && options.retry !== false) {
       if (await refreshSession()) {
-        return rawRequest<T>({ ...options, retry: false })
+        try {
+          return await rawRequest<T>({ ...options, retry: false })
+        } catch (retryError) {
+          if ((retryError as { status?: number }).status === 401) {
+            clearSession()
+            goToLogin()
+          }
+          throw retryError
+        }
       }
-      goToLogin()
+      if (!hasSession()) {
+        goToLogin()
+        throw error
+      }
+      throw {
+        status: failure.status,
+        message: '登录状态刷新失败，请检查网络或稍后重试',
+      }
     }
     throw error
   }
