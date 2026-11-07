@@ -12,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
+
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -137,6 +139,7 @@ class StudyControllerTest {
 
     @Test
     void reflowsMissedItemsToUpcomingDays() throws Exception {
+        LocalDate today = LocalDate.now();
         String skillResponse = mockMvc.perform(post("/api/study/skills")
                         .with(user(OWNER))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -164,10 +167,10 @@ class StudyControllerTest {
                                   "skillId":%d,
                                   "title":"错过的练习",
                                   "note":"",
-                                  "plannedDate":"2026-11-05",
+                                  "plannedDate":"%s",
                                   "plannedMinutes":25
                                 }
-                                """.formatted(skillId)))
+                                """.formatted(skillId, today.minusDays(2).toString())))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/study/items/reflow").with(user(OWNER)))
@@ -176,10 +179,10 @@ class StudyControllerTest {
 
         mockMvc.perform(get("/api/study/items")
                         .with(user(OWNER))
-                        .param("from", "2026-11-06")
-                        .param("to", "2026-11-10"))
+                        .param("from", today.toString())
+                        .param("to", today.plusDays(4).toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].plannedDate").value("2026-11-06"));
+                .andExpect(jsonPath("$[0].plannedDate").value(today.toString()));
     }
 }

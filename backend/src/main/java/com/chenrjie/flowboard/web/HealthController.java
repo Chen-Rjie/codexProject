@@ -1,6 +1,8 @@
 package com.chenrjie.flowboard.web;
 
 import com.chenrjie.flowboard.config.DatabaseMigrationStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/health")
 public class HealthController {
+
+    private static final Logger log = LoggerFactory.getLogger(HealthController.class);
 
     private final DataSource dataSource;
     private final DatabaseMigrationStatus migrationStatus;
@@ -70,6 +74,7 @@ public class HealthController {
     @GetMapping("/redis")
     public ResponseEntity<Map<String, Object>> redisHealth() {
         if (redis == null) {
+            log.warn("Redis health check unavailable: StringRedisTemplate bean is missing");
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of(
                             "status", "DOWN",
@@ -88,6 +93,7 @@ public class HealthController {
             return ResponseEntity.status(valid ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
                     .body(body);
         } catch (RuntimeException exception) {
+            log.error("Redis health check failed", exception);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of(
                             "status", "DOWN",
@@ -97,4 +103,3 @@ public class HealthController {
         }
     }
 }
-

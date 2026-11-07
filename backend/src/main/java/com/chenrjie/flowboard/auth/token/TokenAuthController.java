@@ -8,36 +8,62 @@ import com.chenrjie.flowboard.auth.token.TokenAuthDtos.TokenResponse;
 import com.chenrjie.flowboard.auth.token.TokenAuthDtos.WeChatLoginRequest;
 import com.chenrjie.flowboard.security.AppUserPrincipal;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/api/auth")
 public class TokenAuthController {
 
     private final MiniappAuthService service;
+    private final boolean trustCloudHeaders;
 
-    public TokenAuthController(MiniappAuthService service) {
+    public TokenAuthController(
+            MiniappAuthService service,
+            @Value("${app.wechat.trust-cloud-headers:false}") boolean trustCloudHeaders
+    ) {
         this.service = service;
+        this.trustCloudHeaders = trustCloudHeaders;
     }
 
     @PostMapping("/wechat/login")
-    public TokenResponse wechatLogin(@Valid @RequestBody WeChatLoginRequest request) {
-        return service.loginWithWeChat(request.code());
+    public TokenResponse wechatLogin(
+            @Valid @RequestBody(required = false) WeChatLoginRequest request,
+            @RequestHeader(value = "X-WX-OPENID", required = false) String openId,
+            @RequestHeader(value = "X-WX-UNIONID", required = false) String unionId
+    ) {
+        if (trustCloudHeaders && hasText(openId)) {
+            return service.loginWithWeChatIdentity(openId.trim(), trimToNull(unionId));
+        }
+        String code = request == null ? null : trimToNull(request.code());
+        if (code != null) {
+            return service.loginWithWeChat(code);
+        }
+        throw new IllegalArgumentException("缺少微信登录凭证");
     }
 
     @PostMapping("/wechat/bind")
     public TokenAuthDtos.TokenUser bindWeChat(
             @AuthenticationPrincipal AppUserPrincipal principal,
-            @Valid @RequestBody WeChatLoginRequest request
+            @Valid @RequestBody(required = false) WeChatLoginRequest request,
+            @RequestHeader(value = "X-WX-OPENID", required = false) String openId,
+            @RequestHeader(value = "X-WX-UNIONID", required = false) String unionId
     ) {
-        return service.bindWeChat(principal.id(), request.code());
+        if (trustCloudHeaders && hasText(openId)) {
+            return service.bindWeChatIdentity(principal.id(), openId.trim(), trimToNull(unionId));
+        }
+        String code = request == null ? null : trimToNull(request.code());
+        if (code != null) {
+            return service.bindWeChat(principal.id(), code);
+        }
+        throw new IllegalArgumentException("缺少微信登录凭证");
     }
 
     @PostMapping("/token/login")
@@ -65,5 +91,13 @@ public class TokenAuthController {
                 ? authorization.substring(7).trim()
                 : null;
         service.logout(accessToken, request == null ? null : request.refreshToken());
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static String trimToNull(String value) {
+        return hasText(value) ? value.trim() : null;
     }
 }

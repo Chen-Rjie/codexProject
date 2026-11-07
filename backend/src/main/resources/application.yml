@@ -55,6 +55,7 @@ app:
     app-id: ${WECHAT_APP_ID:}
     app-secret: ${WECHAT_APP_SECRET:}
     code2session-url: ${WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
+    trust-cloud-headers: ${WECHAT_TRUST_CLOUD_HEADERS:false}
   tokens:
     access-ttl: 2h
     refresh-ttl: 30d

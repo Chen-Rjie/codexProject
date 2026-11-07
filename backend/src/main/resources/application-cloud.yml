@@ -23,3 +23,5 @@ spring:
 app:
   database:
     async-initialization: true
+  wechat:
+    trust-cloud-headers: ${WECHAT_TRUST_CLOUD_HEADERS:true}

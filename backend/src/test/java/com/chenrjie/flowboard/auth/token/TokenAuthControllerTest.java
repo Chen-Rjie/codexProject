@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.wechat.trust-cloud-headers=true")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class TokenAuthControllerTest {
@@ -152,5 +152,31 @@ class TokenAuthControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.username").value("binder"));
+    }
+
+    @Test
+    void logsInWithCloudRunInjectedOpenId() throws Exception {
+        mockMvc.perform(post("/api/auth/wechat/login")
+                        .header("X-WX-OPENID", "cloud-openid-001")
+                        .header("X-WX-UNIONID", "cloud-unionid-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.displayName").value("微信用户"))
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+        mockMvc.perform(post("/api/auth/wechat/login")
+                        .header("X-WX-OPENID", "cloud-openid-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void rejectsWeChatLoginWithoutCredentials() throws Exception {
+        mockMvc.perform(post("/api/auth/wechat/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
     }
 }

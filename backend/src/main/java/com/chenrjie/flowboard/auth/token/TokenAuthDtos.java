@@ -9,7 +9,6 @@ public final class TokenAuthDtos {
     }
 
     public record WeChatLoginRequest(
-            @NotBlank(message = "微信登录 code 不能为空")
             String code
     ) {
     }

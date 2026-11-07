@@ -183,15 +183,19 @@ export async function request<T>(options: RequestOptions): Promise<T> {
 }
 
 export async function loginWithWeChat(): Promise<AuthUser> {
-  const loginResult = await new Promise<WechatMiniprogram.LoginSuccessCallbackResult>(
-    (resolve, reject) => {
-      wx.login({ success: resolve, fail: reject })
-    },
-  )
+  let data: { code?: string } = {}
+  if (!USE_CLOUD_CONTAINER) {
+    const loginResult = await new Promise<WechatMiniprogram.LoginSuccessCallbackResult>(
+      (resolve, reject) => {
+        wx.login({ success: resolve, fail: reject })
+      },
+    )
+    data = { code: loginResult.code }
+  }
   const tokens = await rawRequest<TokenResponse>({
     path: '/auth/wechat/login',
     method: 'POST',
-    data: { code: loginResult.code },
+    data,
     auth: false,
   })
   saveTokens(tokens)
@@ -305,15 +309,19 @@ export function reflowItems() {
 }
 
 export async function bindWeChat(): Promise<AuthUser> {
-  const loginResult = await new Promise<WechatMiniprogram.LoginSuccessCallbackResult>(
-    (resolve, reject) => {
-      wx.login({ success: resolve, fail: reject })
-    },
-  )
+  let data: { code?: string } = {}
+  if (!USE_CLOUD_CONTAINER) {
+    const loginResult = await new Promise<WechatMiniprogram.LoginSuccessCallbackResult>(
+      (resolve, reject) => {
+        wx.login({ success: resolve, fail: reject })
+      },
+    )
+    data = { code: loginResult.code }
+  }
   const user = await request<AuthUser>({
     path: '/auth/wechat/bind',
     method: 'POST',
-    data: { code: loginResult.code },
+    data,
   })
   wx.setStorageSync(USER_KEY, user)
   const app = getApp<{ globalData: { user: AuthUser | null } }>()
